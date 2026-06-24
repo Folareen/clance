@@ -52,7 +52,28 @@ export class AuthService {
       })
       .returning();
 
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
+  }
+
+  async getProfile(user_id: string) {
+    const [user] = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        first_name: users.first_name,
+        last_name: users.last_name,
+        avatar_url: users.avatar_url,
+        created_at: users.created_at,
+      })
+      .from(users)
+      .where(eq(users.id, user_id))
+      .limit(1);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async login(dto: LoginDto) {
@@ -71,7 +92,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
   }
 
   async googleAuth(dto: GoogleAuthDto) {
@@ -109,7 +130,7 @@ export class AuthService {
       }
     }
 
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
   }
 
   async refreshTokens(token: string) {
@@ -145,7 +166,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
   }
 
   async requestResetPassword(email: string) {
@@ -216,8 +237,19 @@ export class AuthService {
       .where(eq(refresh_tokens.token_hash, token_hash));
   }
 
-  private async generateTokens(user_id: string, email: string) {
-    const payload: JwtPayload = { sub: user_id, email };
+  private safeUser(user: { id: string; email: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
+    return {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      avatar_url: user.avatar_url,
+      created_at: user.created_at,
+    };
+  }
+
+  private async generateTokens(user: { id: string; email: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
+    const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const access_token = this.jwt.sign(payload, {
       expiresIn: this.ACCESS_TOKEN_EXPIRY,
@@ -229,7 +261,7 @@ export class AuthService {
     expires_at.setDate(expires_at.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
 
     await this.db.insert(refresh_tokens).values({
-      user_id,
+      user_id: user.id,
       token_hash,
       expires_at,
     });
@@ -237,6 +269,7 @@ export class AuthService {
     return {
       access_token,
       refresh_token: raw_refresh_token,
+      user: this.safeUser(user),
     };
   }
 
