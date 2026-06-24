@@ -6,7 +6,8 @@ async function handler(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const apiPath = `/projects/${path.join("/")}`;
+  const qs = req.nextUrl.search;
+  const apiPath = `/projects/${path.join("/")}${qs}`;
 
   let body: unknown;
   if (req.method !== "GET" && req.method !== "HEAD") {

@@ -37,6 +37,56 @@ export interface ProjectDetail extends Project {
   members: Member[];
 }
 
+export type TaskStatus = "backlog" | "in_progress" | "submitted" | "approved";
+export type TaskPriority = "urgent" | "high" | "medium" | "low" | "none";
+
+export interface TaskAssignee {
+  member_id: string;
+  user_id: string | null;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+export interface Task {
+  id: string;
+  project_id: string;
+  parent_id: string | null;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  task_number: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  assignees: TaskAssignee[];
+}
+
+export interface TaskDetail extends Task {
+  subtasks: Task[];
+}
+
+export interface NoteAuthor {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+export interface Note {
+  id: string;
+  project_id: string;
+  title: string;
+  content: any;
+  pinned: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  author: NoteAuthor;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -157,4 +207,63 @@ export const api = {
       method: "POST",
       body: b,
     }),
+
+  // Tasks
+  listTasks: (projectId: string, filters?: { status?: string; priority?: string; search?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.priority) params.set("priority", filters.priority);
+    if (filters?.search) params.set("search", filters.search);
+    const qs = params.toString();
+    return request<Task[]>(`/api/projects/${projectId}/tasks${qs ? `?${qs}` : ""}`);
+  },
+
+  getTask: (projectId: string, taskId: string) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}`),
+
+  createTask: (projectId: string, b: {
+    title: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    due_date?: string;
+    parent_id?: string;
+    assignee_ids?: string[];
+  }) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks`, { method: "POST", body: b }),
+
+  updateTask: (projectId: string, taskId: string, b: {
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    due_date?: string | null;
+    parent_id?: string | null;
+  }) =>
+    request<Task>(`/api/projects/${projectId}/tasks/${taskId}`, { method: "PATCH", body: b }),
+
+  deleteTask: (projectId: string, taskId: string) =>
+    request<void>(`/api/projects/${projectId}/tasks/${taskId}`, { method: "DELETE" }),
+
+  assignTask: (projectId: string, taskId: string, member_ids: string[]) =>
+    request<TaskDetail>(`/api/projects/${projectId}/tasks/${taskId}/assign`, {
+      method: "POST",
+      body: { member_ids },
+    }),
+
+  // Notes
+  listNotes: (projectId: string) =>
+    request<Note[]>(`/api/projects/${projectId}/notes`),
+
+  getNote: (projectId: string, noteId: string) =>
+    request<Note>(`/api/projects/${projectId}/notes/${noteId}`),
+
+  createNote: (projectId: string, b: { title: string; content?: any; pinned?: boolean }) =>
+    request<Note>(`/api/projects/${projectId}/notes`, { method: "POST", body: b }),
+
+  updateNote: (projectId: string, noteId: string, b: { title?: string; content?: any; pinned?: boolean }) =>
+    request<Note>(`/api/projects/${projectId}/notes/${noteId}`, { method: "PATCH", body: b }),
+
+  deleteNote: (projectId: string, noteId: string) =>
+    request<void>(`/api/projects/${projectId}/notes/${noteId}`, { method: "DELETE" }),
 };

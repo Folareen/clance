@@ -3,3 +3,6 @@ export * from './projects';
 export * from './members';
 export * from './refresh_tokens';
 export * from './password_resets';
+export * from './tasks';
+export * from './task_assignees';
+export * from './notes';

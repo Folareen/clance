@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database';
 import { AuthModule } from './auth/auth.module';
 import { ProjectModule } from './project/project.module';
+import { TaskModule } from './task/task.module';
+import { NoteModule } from './note/note.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { ProjectModule } from './project/project.module';
     DatabaseModule,
     AuthModule,
     ProjectModule,
+    TaskModule,
+    NoteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
