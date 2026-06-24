@@ -13,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
 import { ProjectService } from './project.service';
+import { FileService } from '../upload/file.service';
 import {
   CreateProjectDto,
   UpdateProjectDto,
@@ -24,7 +25,10 @@ import {
 
 @Controller('projects')
 export class ProjectController {
-  constructor(private project: ProjectService) {}
+  constructor(
+    private project: ProjectService,
+    private fileService: FileService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -114,5 +118,14 @@ export class ProjectController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.project.updateMember(id, member_id, dto, user.id);
+  }
+
+  @Get(':id/files')
+  @UseGuards(JwtAuthGuard)
+  listFiles(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.fileService.listByProject(id, user.id);
   }
 }

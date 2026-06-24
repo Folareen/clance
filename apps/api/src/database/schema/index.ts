@@ -6,3 +6,6 @@ export * from './password_resets';
 export * from './tasks';
 export * from './task_assignees';
 export * from './notes';
+export * from './channels';
+export * from './messages';
+export * from './files';

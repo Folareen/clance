@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,17 +10,25 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { FastifyRequest } from 'fastify';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
 import { TaskService } from './task.service';
+import { FileService } from '../upload/file.service';
+import { ChatService } from '../chat/chat.service';
 import { CreateTaskDto, UpdateTaskDto, AssignTaskDto } from './dto';
 
 @Controller('projects/:projectId/tasks')
 @UseGuards(JwtAuthGuard)
 export class TaskController {
-  constructor(private taskService: TaskService) {}
+  constructor(
+    private taskService: TaskService,
+    private fileService: FileService,
+    private chatService: ChatService,
+  ) {}
 
   @Post()
   create(
@@ -82,5 +91,67 @@ export class TaskController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.taskService.assign(projectId, taskId, dto, user.id);
+  }
+
+  @Post(':taskId/files')
+  async uploadFile(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Req() req: FastifyRequest,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await req.file();
+    if (!data) throw new BadRequestException('No file uploaded');
+
+    const buffer = await data.toBuffer();
+
+    return this.fileService.upload(
+      projectId,
+      user.id,
+      'task',
+      taskId,
+      buffer,
+      data.filename,
+      data.mimetype,
+      buffer.length,
+    );
+  }
+
+  @Get(':taskId/files')
+  listFiles(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.fileService.listByAttachment(projectId, user.id, 'task', taskId);
+  }
+
+  @Delete(':taskId/files/:fileId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeFile(
+    @Param('projectId') projectId: string,
+    @Param('fileId') fileId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.fileService.remove(projectId, fileId, user.id);
+  }
+
+  @Get(':taskId/comments')
+  getComments(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.getComments(projectId, taskId, user.id);
+  }
+
+  @Post(':taskId/comments')
+  sendComment(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body('content') content: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.sendComment(projectId, taskId, content, user.id);
   }
 }

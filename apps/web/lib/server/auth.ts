@@ -92,6 +92,42 @@ export async function tryRefreshTokens(): Promise<boolean> {
   return true;
 }
 
+export async function proxyRawToApi(
+  path: string,
+  options: { method?: string; body?: BodyInit; contentType?: string; auth?: boolean } = {}
+) {
+  const { method = "POST", body, contentType, auth = false } = options;
+
+  const upstream = async (token?: string) => {
+    const headers: Record<string, string> = {};
+    if (contentType) headers["Content-Type"] = contentType;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return fetch(`${API}${path}`, { method, headers, body });
+  };
+
+  if (!auth) {
+    const res = await upstream();
+    return NextResponse.json(await readBody(res), { status: res.status });
+  }
+
+  let token = await getAccessToken();
+  if (!token && (await tryRefreshTokens())) {
+    token = await getAccessToken();
+  }
+  if (!token) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const res = await upstream(token);
+
+  if (res.status === 401) {
+    await clearAuthCookies();
+    return NextResponse.json({ message: "Session expired" }, { status: 401 });
+  }
+
+  return NextResponse.json(await readBody(res), { status: res.status });
+}
+
 export async function proxyToApi(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean } = {}

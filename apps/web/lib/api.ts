@@ -87,6 +87,78 @@ export interface Note {
   author: NoteAuthor;
 }
 
+export interface Channel {
+  id: string;
+  project_id: string;
+  name: string | null;
+  type: "group" | "dm";
+  created_by: string;
+  created_at: string;
+}
+
+export interface DmChannel extends Channel {
+  peer: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  };
+}
+
+export interface ChannelList {
+  group: Channel[];
+  dm: DmChannel[];
+}
+
+export interface MessageSender {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+export interface Message {
+  id: string;
+  channel_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  sender: MessageSender;
+}
+
+export interface MessagePage {
+  messages: Message[];
+  hasMore: boolean;
+}
+
+export interface CommentPage extends MessagePage {
+  channelId: string | null;
+}
+
+export interface FileUploader {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+export interface FileRecord {
+  id: string;
+  project_id: string;
+  uploaded_by: string;
+  cloudinary_id: string;
+  url: string;
+  filename: string;
+  mimetype: string | null;
+  size: number | null;
+  attach_type: "task" | "message";
+  attach_id: string;
+  created_at: string;
+  uploader: FileUploader;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -251,6 +323,15 @@ export const api = {
       body: { member_ids },
     }),
 
+  getComments: (projectId: string, taskId: string) =>
+    request<CommentPage>(`/api/projects/${projectId}/tasks/${taskId}/comments`),
+
+  sendComment: (projectId: string, taskId: string, content: string) =>
+    request<Message>(`/api/projects/${projectId}/tasks/${taskId}/comments`, {
+      method: "POST",
+      body: { content },
+    }),
+
   // Notes
   listNotes: (projectId: string) =>
     request<Note[]>(`/api/projects/${projectId}/notes`),
@@ -266,4 +347,71 @@ export const api = {
 
   deleteNote: (projectId: string, noteId: string) =>
     request<void>(`/api/projects/${projectId}/notes/${noteId}`, { method: "DELETE" }),
+
+  // Chat
+  listChannels: (projectId: string) =>
+    request<ChannelList>(`/api/projects/${projectId}/channels`),
+
+  createChannel: (projectId: string, name: string) =>
+    request<Channel>(`/api/projects/${projectId}/channels`, {
+      method: "POST",
+      body: { name },
+    }),
+
+  createDm: (projectId: string, member_user_id: string) =>
+    request<Channel>(`/api/projects/${projectId}/channels/dm`, {
+      method: "POST",
+      body: { member_user_id },
+    }),
+
+  getMessages: (projectId: string, channelId: string, cursor?: string) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    const qs = params.toString();
+    return request<MessagePage>(
+      `/api/projects/${projectId}/channels/${channelId}/messages${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  // Files
+  uploadTaskFile: async (projectId: string, taskId: string, file: File): Promise<FileRecord> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/files`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) throw await parseError(res);
+    return res.json();
+  },
+
+  listTaskFiles: (projectId: string, taskId: string) =>
+    request<FileRecord[]>(`/api/projects/${projectId}/tasks/${taskId}/files`),
+
+  deleteFile: (projectId: string, taskId: string, fileId: string) =>
+    request<void>(`/api/projects/${projectId}/tasks/${taskId}/files/${fileId}`, {
+      method: "DELETE",
+    }),
+
+  uploadChatFile: async (projectId: string, channelId: string, file: File): Promise<FileRecord> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/projects/${projectId}/channels/${channelId}/files`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) throw await parseError(res);
+    return res.json();
+  },
+
+  listChatFiles: (projectId: string, channelId: string) =>
+    request<FileRecord[]>(`/api/projects/${projectId}/channels/${channelId}/files`),
+
+  deleteChatFile: (projectId: string, channelId: string, fileId: string) =>
+    request<void>(`/api/projects/${projectId}/channels/${channelId}/files/${fileId}`, {
+      method: "DELETE",
+    }),
+
+  listProjectFiles: (projectId: string) =>
+    request<FileRecord[]>(`/api/projects/${projectId}/files`),
 };

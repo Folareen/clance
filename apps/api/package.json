@@ -19,15 +19,19 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-fastify": "^11.0.0",
+    "@nestjs/platform-socket.io": "^11.1.27",
+    "@nestjs/websockets": "^11.1.27",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cloudinary": "^2.10.0",
     "drizzle-orm": "^0.44.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
@@ -35,7 +39,8 @@
     "postgres": "^3.4.5",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.14.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -45,6 +50,7 @@
     "@types/node": "^22.0.0",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.0.0",
+    "fastify": "^5.8.5",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.0.0"
   }

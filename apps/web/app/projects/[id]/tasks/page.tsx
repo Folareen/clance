@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Plus,
@@ -15,9 +15,16 @@ import {
   Calendar,
   Users,
   Trash2,
+  Paperclip,
+  Upload,
+  FileIcon,
+  Image,
+  Send,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
+import { useAuth } from "@/components/auth-provider";
 import {
   api,
   ApiError,
@@ -26,6 +33,8 @@ import {
   type TaskStatus,
   type TaskPriority,
   type Member,
+  type FileRecord,
+  type Message,
 } from "@/lib/api";
 
 const statusConfig: Record<
@@ -613,12 +622,38 @@ function TaskDetailPanel({
   const [description, setDescription] = useState(task.description ?? "");
   const [saving, setSaving] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
+  const [files, setFiles] = useState<FileRecord[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [comments, setComments] = useState<Message[]>([]);
+  const [commentInput, setCommentInput] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  const loadFiles = useCallback(async () => {
+    try {
+      const data = await api.listTaskFiles(projectId, task.id);
+      setFiles(data);
+    } catch {}
+  }, [projectId, task.id]);
+
+  const loadComments = useCallback(async () => {
+    try {
+      const data = await api.getComments(projectId, task.id);
+      setComments(data.messages);
+    } catch {}
+  }, [projectId, task.id]);
 
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description ?? "");
     setEditing(false);
-  }, [task]);
+    loadFiles();
+    loadComments();
+  }, [task, loadFiles, loadComments]);
+
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [comments]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -663,13 +698,45 @@ function TaskDetailPanel({
     } catch {}
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList?.length) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(fileList)) {
+        await api.uploadTaskFile(projectId, task.id, file);
+      }
+      await loadFiles();
+    } catch {}
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      await api.deleteFile(projectId, task.id, fileId);
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    } catch {}
+  };
+
+  const handleSendComment = async () => {
+    if (!commentInput.trim()) return;
+    setSendingComment(true);
+    try {
+      const msg = await api.sendComment(projectId, task.id, commentInput.trim());
+      setComments((prev) => [...prev, msg]);
+      setCommentInput("");
+    } catch {}
+    setSendingComment(false);
+  };
+
   const status = statusConfig[task.status];
   const StatusIcon = status.icon;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-end z-50">
-      <div className="bg-surface w-full max-w-xl h-full overflow-y-auto border-l border-stroke">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stroke sticky top-0 bg-surface z-10">
+      <div className="bg-surface w-full max-w-xl h-full flex flex-col border-l border-stroke">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stroke bg-surface z-10 shrink-0">
           <div className="flex items-center gap-2 text-sm text-content-muted">
             <span className="font-mono">#{task.task_number}</span>
             <ChevronRight className="w-3 h-3" />
@@ -692,7 +759,8 @@ function TaskDetailPanel({
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="overflow-y-auto flex-1 flex flex-col">
+        <div className="p-6 space-y-6 shrink-0">
           {editing ? (
             <div className="space-y-3">
               <input
@@ -859,6 +927,127 @@ function TaskDetailPanel({
               </div>
             </div>
           )}
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-content-muted uppercase tracking-wider">
+                Attachments {files.length > 0 && `(${files.length})`}
+              </label>
+              <label className="text-xs text-accent hover:text-accent-hover font-medium cursor-pointer">
+                <Upload className="w-3.5 h-3.5 inline mr-1" />
+                {uploading ? "Uploading..." : "Upload"}
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+            {files.length > 0 ? (
+              <div className="space-y-2">
+                {files.map((f) => {
+                  const isImage = f.mimetype?.startsWith("image/");
+                  return (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-surface-secondary group"
+                    >
+                      {isImage ? (
+                        <Image className="w-4 h-4 text-info shrink-0" />
+                      ) : (
+                        <FileIcon className="w-4 h-4 text-content-muted shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={f.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-content hover:text-accent transition-colors truncate block"
+                        >
+                          {f.filename}
+                        </a>
+                        <span className="text-xs text-content-muted">
+                          {f.size ? formatFileSize(f.size) : ""}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteFile(f.id)}
+                        className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-danger-soft text-content-muted hover:text-danger transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-content-muted italic">No attachments</p>
+            )}
+          </div>
+
+          </div>
+          <div className="flex flex-col flex-1 min-h-0 px-6 pb-6 pt-2">
+            <label className="block text-xs font-medium text-content-muted uppercase tracking-wider mb-3 shrink-0">
+              <MessageSquare className="w-3.5 h-3.5 inline mr-1" />
+              Comments {comments.length > 0 && `(${comments.length})`}
+            </label>
+            <div className="space-y-3 mb-3 flex-1 overflow-y-auto">
+              {comments.map((c) => (
+                <div key={c.id} className="flex gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-accent-soft flex items-center justify-center text-[10px] font-semibold text-accent shrink-0 mt-0.5">
+                    {c.sender.first_name
+                      ? (c.sender.first_name.charAt(0) + (c.sender.last_name?.charAt(0) ?? "")).toUpperCase()
+                      : c.sender.email.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-content">
+                        {c.sender.first_name
+                          ? `${c.sender.first_name} ${c.sender.last_name ?? ""}`.trim()
+                          : c.sender.email}
+                      </span>
+                      <span className="text-[11px] text-content-muted">
+                        {new Date(c.created_at).toLocaleString([], {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-content-secondary mt-0.5 leading-relaxed">
+                      {c.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div ref={commentsEndRef} />
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <input
+                type="text"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendComment();
+                  }
+                }}
+                placeholder="Write a comment..."
+                className="flex-1 px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+              />
+              <button
+                onClick={handleSendComment}
+                disabled={!commentInput.trim() || sendingComment}
+                className="p-2 rounded-lg bg-accent hover:bg-accent-hover text-accent-contrast transition-colors disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -940,4 +1129,10 @@ function isDueSoon(iso: string) {
   const diff = d.getTime() - now.getTime();
   const hours = diff / (1000 * 60 * 60);
   return hours < 24 && hours > -48;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
