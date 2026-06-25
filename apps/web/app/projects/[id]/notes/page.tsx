@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
 import { api, ApiError, type Note } from "@/lib/api";
 import { TiptapEditor, TiptapViewer } from "@/components/tiptap-editor";
+import { ConfirmModal } from "@/components/confirm-modal";
+import { toast } from "@/components/toast";
 
 export default function ProjectNotes() {
   const { project } = useProject();
@@ -228,6 +230,8 @@ function NoteEditor({
   const [saved, setSaved] = useState(!!note);
   const [noteId, setNoteId] = useState(note?.id ?? "");
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const save = async () => {
     if (!title.trim()) return;
@@ -257,11 +261,15 @@ function NoteEditor({
       onBack();
       return;
     }
-    if (!confirm("Delete this note?")) return;
+    setDeleting(true);
     try {
       await api.deleteNote(projectId, noteId);
       onDeleted();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to delete note");
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const togglePin = async () => {
@@ -298,7 +306,7 @@ function NoteEditor({
             <Pin className="w-4 h-4" />
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => noteId ? setShowDeleteConfirm(true) : onBack()}
             className="p-2 rounded-lg text-content-muted hover:text-danger hover:bg-danger-soft transition-colors"
             title="Delete"
           >
@@ -334,6 +342,17 @@ function NoteEditor({
         onChange={setContent}
         placeholder="Start writing..."
       />
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Delete note"
+          message={`Delete "${title || "Untitled"}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

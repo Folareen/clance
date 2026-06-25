@@ -17,6 +17,8 @@ import {
   SignupDto,
   LoginDto,
   GoogleAuthDto,
+  SendCodeDto,
+  VerifyCodeDto,
   RefreshTokenDto,
   RequestResetPasswordDto,
   ResetPasswordDto,
@@ -47,6 +49,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   googleAuth(@Body() dto: GoogleAuthDto) {
     return this.auth.googleAuth(dto);
+  }
+
+  @Post('send-code')
+  @HttpCode(HttpStatus.OK)
+  async sendCode(@Body() dto: SendCodeDto) {
+    await this.auth.sendCode(dto);
+    return { message: 'Code sent' };
+  }
+
+  @Post('verify-code')
+  @HttpCode(HttpStatus.OK)
+  verifyCode(@Body() dto: VerifyCodeDto) {
+    return this.auth.verifyCode(dto);
   }
 
   @Post('refresh')

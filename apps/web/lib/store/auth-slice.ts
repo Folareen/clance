@@ -40,6 +40,22 @@ export const signup = createAsyncThunk(
   }
 );
 
+export const googleLogin = createAsyncThunk(
+  "auth/googleLogin",
+  async (id_token: string) => {
+    const { user } = await api.googleAuth(id_token);
+    return user;
+  }
+);
+
+export const codeLogin = createAsyncThunk(
+  "auth/codeLogin",
+  async ({ email, code }: { email: string; code: string }) => {
+    const { user } = await api.verifyCode(email, code);
+    return user;
+  }
+);
+
 export const logout = createAsyncThunk("auth/logout", async () => {
   await api.logout();
 });
@@ -94,6 +110,28 @@ const authSlice = createSlice({
       })
       .addCase(signup.rejected, (state, action) => {
         state.error = action.error.message ?? "Signup failed";
+      })
+      .addCase(googleLogin.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(googleLogin.fulfilled, (state, action: PayloadAction<User>) => {
+        state.user = action.payload;
+        state.status = "authenticated";
+        state.error = null;
+      })
+      .addCase(googleLogin.rejected, (state, action) => {
+        state.error = action.error.message ?? "Google login failed";
+      })
+      .addCase(codeLogin.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(codeLogin.fulfilled, (state, action: PayloadAction<User>) => {
+        state.user = action.payload;
+        state.status = "authenticated";
+        state.error = null;
+      })
+      .addCase(codeLogin.rejected, (state, action) => {
+        state.error = action.error.message ?? "Code verification failed";
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;

@@ -21,6 +21,7 @@ import {
   Image,
   Send,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
@@ -36,6 +37,8 @@ import {
   type FileRecord,
   type Message,
 } from "@/lib/api";
+import { ConfirmModal } from "@/components/confirm-modal";
+import { toast } from "@/components/toast";
 
 const statusConfig: Record<
   TaskStatus,
@@ -621,6 +624,10 @@ function TaskDetailPanel({
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [saving, setSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingPriority, setSavingPriority] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -664,22 +671,32 @@ function TaskDetailPanel({
       });
       setEditing(false);
       onUpdated();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to save task");
+    }
     setSaving(false);
   };
 
   const handleStatusChange = async (status: TaskStatus) => {
+    setSavingStatus(true);
     try {
       await api.updateTask(projectId, task.id, { status });
       onUpdated();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to update status");
+    }
+    setSavingStatus(false);
   };
 
   const handlePriorityChange = async (priority: TaskPriority) => {
+    setSavingPriority(true);
     try {
       await api.updateTask(projectId, task.id, { priority });
       onUpdated();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to update priority");
+    }
+    setSavingPriority(false);
   };
 
   const handleAssign = async (memberIds: string[]) => {
@@ -691,11 +708,15 @@ function TaskDetailPanel({
   };
 
   const handleDelete = async () => {
-    if (!confirm("Delete this task?")) return;
+    setDeleting(true);
     try {
       await api.deleteTask(projectId, task.id);
       onDeleted();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to delete task");
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -745,7 +766,7 @@ function TaskDetailPanel({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               className="p-1.5 rounded-md hover:bg-danger-soft text-content-muted hover:text-danger transition-colors"
             >
               <Trash2 className="w-4 h-4" />
@@ -822,36 +843,48 @@ function TaskDetailPanel({
               <label className="block text-xs font-medium text-content-muted uppercase tracking-wider mb-2">
                 Status
               </label>
-              <select
-                value={task.status}
-                onChange={(e) =>
-                  handleStatusChange(e.target.value as TaskStatus)
-                }
-                className="w-full px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              >
-                <option value="backlog">Backlog</option>
-                <option value="in_progress">In Progress</option>
-                <option value="submitted">Submitted</option>
-                <option value="approved">Approved</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={task.status}
+                  disabled={savingStatus}
+                  onChange={(e) =>
+                    handleStatusChange(e.target.value as TaskStatus)
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+                >
+                  <option value="backlog">Backlog</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="approved">Approved</option>
+                </select>
+                {savingStatus && (
+                  <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-content-muted" />
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-content-muted uppercase tracking-wider mb-2">
                 Priority
               </label>
-              <select
-                value={task.priority}
-                onChange={(e) =>
-                  handlePriorityChange(e.target.value as TaskPriority)
-                }
-                className="w-full px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              >
-                <option value="none">None</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={task.priority}
+                  disabled={savingPriority}
+                  onChange={(e) =>
+                    handlePriorityChange(e.target.value as TaskPriority)
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+                >
+                  <option value="none">None</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+                {savingPriority && (
+                  <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-content-muted" />
+                )}
+              </div>
             </div>
           </div>
 
@@ -1050,6 +1083,17 @@ function TaskDetailPanel({
           </div>
         </div>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Delete task"
+          message={`Delete task #${task.task_number} "${task.title}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

@@ -10,9 +10,9 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
-import { users, refresh_tokens, password_resets } from '../database/schema';
+import { users, refresh_tokens, password_resets, email_codes } from '../database/schema';
 import { EmailService } from '../email/email.service';
-import { SignupDto, LoginDto, GoogleAuthDto } from './dto';
+import { SignupDto, LoginDto, GoogleAuthDto, SendCodeDto, VerifyCodeDto } from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
@@ -21,6 +21,7 @@ export class AuthService {
   private readonly ACCESS_TOKEN_EXPIRY = '15m';
   private readonly REFRESH_TOKEN_EXPIRY_DAYS = 30;
   private readonly RESET_TOKEN_EXPIRY_HOURS = 1;
+  private readonly EMAIL_CODE_EXPIRY_MINUTES = 10;
 
   constructor(
     @Inject(DRIZZLE) private db: DrizzleDB,
@@ -128,6 +129,61 @@ export class AuthService {
           })
           .returning();
       }
+    }
+
+    return this.generateTokens(user);
+  }
+
+  async sendCode(dto: SendCodeDto) {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code_hash = this.hashToken(code);
+    const expires_at = new Date();
+    expires_at.setMinutes(expires_at.getMinutes() + this.EMAIL_CODE_EXPIRY_MINUTES);
+
+    await this.db.insert(email_codes).values({
+      email: dto.email.toLowerCase(),
+      code_hash,
+      expires_at,
+    });
+
+    await this.email.sendLoginCodeEmail(dto.email, code);
+  }
+
+  async verifyCode(dto: VerifyCodeDto) {
+    const code_hash = this.hashToken(dto.code);
+
+    const [record] = await this.db
+      .select()
+      .from(email_codes)
+      .where(
+        and(
+          eq(email_codes.email, dto.email.toLowerCase()),
+          eq(email_codes.code_hash, code_hash),
+          eq(email_codes.used, false),
+        ),
+      )
+      .limit(1);
+
+    if (!record || record.expires_at < new Date()) {
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+
+    await this.db
+      .update(email_codes)
+      .set({ used: true })
+      .where(eq(email_codes.id, record.id));
+
+    let [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, dto.email.toLowerCase()))
+      .limit(1);
+
+    if (!user) {
+      [user] = await this.db
+        .insert(users)
+        .values({ email: dto.email.toLowerCase() })
+        .returning();
     }
 
     return this.generateTokens(user);

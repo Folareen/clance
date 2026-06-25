@@ -218,6 +218,15 @@ export const api = {
     last_name?: string;
   }) => request<{ user: User }>("/api/auth/signup", { method: "POST", body: b }),
 
+  googleAuth: (id_token: string) =>
+    request<{ user: User }>("/api/auth/google", { method: "POST", body: { id_token } }),
+
+  sendCode: (email: string) =>
+    request<{ message: string }>("/api/auth/send-code", { method: "POST", body: { email } }),
+
+  verifyCode: (email: string, code: string) =>
+    request<{ user: User }>("/api/auth/verify-code", { method: "POST", body: { email, code } }),
+
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
 
   me: () => request<User>("/api/auth/me"),

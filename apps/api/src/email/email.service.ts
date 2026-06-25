@@ -26,6 +26,20 @@ export class EmailService {
     });
   }
 
+  async sendLoginCodeEmail(to: string, code: string) {
+    await this.resend.emails.send({
+      from: this.fromEmail,
+      to,
+      subject: `${code} is your Clance sign-in code`,
+      html: `
+        <p>Your sign-in code is:</p>
+        <h1 style="font-size:32px;letter-spacing:6px;font-family:monospace;margin:16px 0">${code}</h1>
+        <p>This code expires in 10 minutes.</p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+      `,
+    });
+  }
+
   async sendPasswordResetEmail(to: string, token: string) {
     const resetUrl = `${this.config.getOrThrow<string>('FRONTEND_URL')}/reset-password?token=${token}`;
 

@@ -6,6 +6,8 @@ import { useAppDispatch, useAppSelector } from "@/lib/store";
 import {
   login as loginThunk,
   signup as signupThunk,
+  googleLogin as googleLoginThunk,
+  codeLogin as codeLoginThunk,
   logout as logoutThunk,
   loadUser,
 } from "@/lib/store/auth-slice";
@@ -47,6 +49,30 @@ export function useAuth() {
     [dispatch, router]
   );
 
+  const googleLogin = useCallback(
+    async (idToken: string, redirectTo?: string) => {
+      const result = await dispatch(googleLoginThunk(idToken));
+      if (googleLoginThunk.fulfilled.match(result)) {
+        router.push(redirectTo || "/");
+      } else {
+        throw new Error(result.error.message ?? "Google login failed");
+      }
+    },
+    [dispatch, router]
+  );
+
+  const codeLogin = useCallback(
+    async (email: string, code: string, redirectTo?: string) => {
+      const result = await dispatch(codeLoginThunk({ email, code }));
+      if (codeLoginThunk.fulfilled.match(result)) {
+        router.push(redirectTo || "/");
+      } else {
+        throw new Error(result.error.message ?? "Code verification failed");
+      }
+    },
+    [dispatch, router]
+  );
+
   const logoutFn = useCallback(async () => {
     await dispatch(logoutThunk());
     router.push("/login");
@@ -65,6 +91,8 @@ export function useAuth() {
     error,
     login,
     signup,
+    googleLogin,
+    codeLogin,
     logout: logoutFn,
     refreshUser,
   };

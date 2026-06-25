@@ -19,6 +19,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
 import { api, ApiError, type Member, type Role } from "@/lib/api";
 import { memberDisplayName } from "@/lib/display";
+import { ConfirmModal } from "@/components/confirm-modal";
 import { cn } from "@/lib/utils";
 
 export default function ProjectOverview() {
@@ -27,6 +28,7 @@ export default function ProjectOverview() {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   if (!project) return null;
 
@@ -41,8 +43,6 @@ export default function ProjectOverview() {
   ];
 
   async function handleLeave() {
-    if (!confirm("Leave this project? Your assigned tasks become unassigned."))
-      return;
     setLeaveError(null);
     setLeaving(true);
     try {
@@ -53,6 +53,7 @@ export default function ProjectOverview() {
         err instanceof ApiError ? err.message : "Couldn't leave the project"
       );
       setLeaving(false);
+      setShowLeaveConfirm(false);
     }
   }
 
@@ -78,7 +79,7 @@ export default function ProjectOverview() {
         </div>
         {me && (
           <button
-            onClick={handleLeave}
+            onClick={() => setShowLeaveConfirm(true)}
             disabled={leaving}
             className="flex items-center gap-1.5 text-sm text-content-secondary hover:text-danger transition-colors disabled:opacity-60"
           >
@@ -127,6 +128,17 @@ export default function ProjectOverview() {
         currentUserId={user?.id}
         onChange={reload}
       />
+
+      {showLeaveConfirm && (
+        <ConfirmModal
+          title="Leave project"
+          message="Your assigned tasks will become unassigned. This action cannot be undone."
+          confirmLabel="Leave"
+          loading={leaving}
+          onConfirm={handleLeave}
+          onCancel={() => setShowLeaveConfirm(false)}
+        />
+      )}
     </div>
   );
 }
@@ -273,6 +285,7 @@ function MemberRow({
   onChange: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const name = memberDisplayName(member);
 
   async function changeRole(role: Role) {
@@ -287,13 +300,13 @@ function MemberRow({
   }
 
   async function remove() {
-    if (!confirm(`Remove ${member.email} from this project?`)) return;
     setBusy(true);
     try {
       await api.removeMember(projectId, member.id);
       await onChange();
     } catch {
       setBusy(false);
+      setShowRemoveConfirm(false);
     }
   }
 
@@ -343,7 +356,7 @@ function MemberRow({
 
       {isManager && !isSelf && (
         <button
-          onClick={remove}
+          onClick={() => setShowRemoveConfirm(true)}
           disabled={busy}
           className="text-content-muted hover:text-danger transition-colors disabled:opacity-60"
           title="Remove member"
@@ -354,6 +367,17 @@ function MemberRow({
             <X className="w-4 h-4" />
           )}
         </button>
+      )}
+
+      {showRemoveConfirm && (
+        <ConfirmModal
+          title="Remove member"
+          message={`Remove ${member.email} from this project? Their assigned tasks will become unassigned.`}
+          confirmLabel="Remove"
+          loading={busy}
+          onConfirm={remove}
+          onCancel={() => setShowRemoveConfirm(false)}
+        />
       )}
     </div>
   );

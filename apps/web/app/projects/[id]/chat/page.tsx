@@ -425,9 +425,9 @@ export default function ProjectChat() {
 
         {active && (
           <div className="px-4 sm:px-6 py-4 border-t border-stroke bg-surface">
-            <div className="flex items-end gap-2">
-              <label className="p-3 text-content-muted hover:text-content hover:bg-surface-hover rounded-xl transition-colors cursor-pointer shrink-0">
-                <Paperclip className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <label className="flex items-center justify-center w-10 h-10 text-content-muted hover:text-content hover:bg-surface-hover rounded-xl transition-colors cursor-pointer shrink-0">
+                <Paperclip className="w-5 h-5" />
                 <input
                   type="file"
                   multiple
@@ -435,27 +435,25 @@ export default function ProjectChat() {
                   className="hidden"
                 />
               </label>
-              <div className="flex-1 relative">
-                <textarea
-                  value={input}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder={`Message ${active.kind === "group" ? "#" : ""}${channelDisplayName(active)}...`}
-                  rows={1}
-                  className="w-full px-4 py-3 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none"
-                />
-              </div>
+              <textarea
+                value={input}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={`Message ${active.kind === "group" ? "#" : ""}${channelDisplayName(active)}...`}
+                rows={1}
+                className="flex-1 min-w-0 px-4 py-2.5 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none"
+              />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || !connected}
-                className="p-3 bg-accent hover:bg-accent-hover text-accent-contrast rounded-xl transition-colors shrink-0 disabled:opacity-50"
+                className="flex items-center justify-center w-10 h-10 bg-accent hover:bg-accent-hover text-accent-contrast rounded-xl transition-colors shrink-0 disabled:opacity-50"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               </button>
             </div>
           </div>

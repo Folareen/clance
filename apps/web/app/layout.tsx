@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StoreProvider } from "@/components/store-provider";
+import { ToastContainer } from "@/components/toast";
 import { THEME_KEY } from "@/lib/constants";
 import "./globals.css";
 
@@ -24,7 +25,10 @@ export default function RootLayout({
           }}
         />
         <StoreProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            {children}
+            <ToastContainer />
+          </ThemeProvider>
         </StoreProvider>
       </body>
     </html>
