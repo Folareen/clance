@@ -159,6 +159,53 @@ export interface FileRecord {
   uploader: FileUploader;
 }
 
+export interface ProjectRecentTask {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  task_number: number;
+  due_date: string | null;
+}
+
+export interface ProjectStats {
+  id: string;
+  name: string;
+  description: string | null;
+  role: string;
+  created_at: string;
+  member_count: number;
+  total_tasks: number;
+  open_tasks: number;
+  overdue_tasks: number;
+  my_tasks: number;
+  recent_tasks: ProjectRecentTask[];
+}
+
+export interface DashboardStats {
+  projects: ProjectStats[];
+}
+
+export interface ProjectDashboard {
+  tasks_by_status: {
+    backlog: number;
+    in_progress: number;
+    submitted: number;
+    approved: number;
+  };
+  total_tasks: number;
+  overdue_tasks: number;
+  my_tasks: number;
+  recent_tasks: {
+    id: string;
+    title: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    due_date: string | null;
+    task_number: number;
+    updated_at: string;
+  }[];
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -423,4 +470,18 @@ export const api = {
 
   listProjectFiles: (projectId: string) =>
     request<FileRecord[]>(`/api/projects/${projectId}/files`),
+
+  // Dashboard
+  getDashboardStats: () =>
+    request<DashboardStats>("/api/dashboard/stats"),
+
+  getProjectDashboard: (projectId: string) =>
+    request<ProjectDashboard>(`/api/dashboard/projects/${projectId}`),
+
+  // AI Assistant
+  askAssistant: (projectId: string, message: string, history?: { role: 'user' | 'assistant'; content: string }[]) =>
+    request<{ reply: string }>(`/api/projects/${projectId}/assistant/ask`, {
+      method: "POST",
+      body: { message, history },
+    }),
 };

@@ -9,6 +9,8 @@ import { TaskModule } from './task/task.module';
 import { NoteModule } from './note/note.module';
 import { ChatModule } from './chat/chat.module';
 import { UploadModule } from './upload/upload.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { AssistantModule } from './assistant/assistant.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { UploadModule } from './upload/upload.module';
     NoteModule,
     ChatModule,
     UploadModule,
+    DashboardModule,
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],

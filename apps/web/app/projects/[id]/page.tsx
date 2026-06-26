@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CheckSquare,
@@ -12,15 +12,39 @@ import {
   UserPlus,
   X,
   LogOut,
+  Circle,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { ProjectAvatar } from "@/components/project-avatar";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
-import { api, ApiError, type Member, type Role } from "@/lib/api";
+import { api, ApiError, type Member, type Role, type ProjectDashboard, type TaskStatus } from "@/lib/api";
 import { memberDisplayName } from "@/lib/display";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { cn } from "@/lib/utils";
+
+const statusConfig: Record<
+  TaskStatus,
+  { label: string; icon: typeof Circle; className: string }
+> = {
+  backlog: { label: "Backlog", icon: Circle, className: "text-content-muted" },
+  in_progress: { label: "In Progress", icon: Clock, className: "text-info" },
+  submitted: { label: "Submitted", icon: AlertCircle, className: "text-warning" },
+  approved: { label: "Approved", icon: CheckCircle2, className: "text-success" },
+};
+
+function formatDue(iso: string) {
+  const d = new Date(iso);
+  const diff = d.getTime() - Date.now();
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days === -1) return "Yesterday";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export default function ProjectOverview() {
   const { project, reload } = useProject();
@@ -29,6 +53,12 @@ export default function ProjectOverview() {
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [dashboard, setDashboard] = useState<ProjectDashboard | null>(null);
+
+  useEffect(() => {
+    if (!project) return;
+    api.getProjectDashboard(project.id).then(setDashboard).catch(() => {});
+  }, [project?.id]);
 
   if (!project) return null;
 
@@ -96,6 +126,92 @@ export default function ProjectOverview() {
       {leaveError && (
         <div className="rounded-lg bg-danger-soft border border-danger/20 px-3.5 py-2.5 text-sm text-danger mb-6">
           {leaveError}
+        </div>
+      )}
+
+      {/* Task stats */}
+      {dashboard && dashboard.total_tasks > 0 && (
+        <div className="bg-surface border border-stroke rounded-xl mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-stroke-secondary">
+            {([
+              ["backlog", dashboard.tasks_by_status.backlog],
+              ["in_progress", dashboard.tasks_by_status.in_progress],
+              ["submitted", dashboard.tasks_by_status.submitted],
+            ] as [TaskStatus, number][]).map(([key, count]) => {
+              const cfg = statusConfig[key];
+              const Icon = cfg.icon;
+              return (
+                <div key={key} className="px-5 py-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={cn("w-3.5 h-3.5", cfg.className)} />
+                    <span className="text-xs font-medium text-content-muted uppercase tracking-wider">
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <p className="text-xl font-semibold text-content">{count}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-stroke-secondary grid grid-cols-3 divide-x divide-stroke-secondary">
+            <div className="px-5 py-3">
+              <span className="text-xs text-content-muted">Approved</span>
+              <p className="text-sm font-semibold text-success">{dashboard.tasks_by_status.approved}</p>
+            </div>
+            <div className="px-5 py-3">
+              <span className="text-xs text-content-muted">Overdue</span>
+              <p className={cn("text-sm font-semibold", dashboard.overdue_tasks > 0 ? "text-danger" : "text-content")}>
+                {dashboard.overdue_tasks}
+              </p>
+            </div>
+            <div className="px-5 py-3">
+              <span className="text-xs text-content-muted">My tasks</span>
+              <p className="text-sm font-semibold text-content">{dashboard.my_tasks}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recently updated */}
+      {dashboard && dashboard.recent_tasks.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xs font-medium text-content-muted uppercase tracking-wider mb-3">
+            Recently updated
+          </h2>
+          <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+            {dashboard.recent_tasks.map((task) => {
+              const cfg = statusConfig[task.status];
+              const Icon = cfg.icon;
+              const overdue =
+                task.due_date &&
+                new Date(task.due_date) < new Date() &&
+                task.status !== "approved";
+
+              return (
+                <Link
+                  key={task.id}
+                  href={`/projects/${project.id}/tasks`}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-surface-hover/50 transition-colors group"
+                >
+                  <Icon className={cn("w-4 h-4 shrink-0", cfg.className)} />
+                  <span className="text-xs text-content-muted font-mono shrink-0">
+                    #{task.task_number}
+                  </span>
+                  <span className="text-sm font-medium text-content truncate flex-1 group-hover:text-accent transition-colors">
+                    {task.title}
+                  </span>
+                  {task.due_date && (
+                    <span className={cn("text-xs shrink-0", overdue ? "text-danger font-medium" : "text-content-secondary")}>
+                      {formatDue(task.due_date)}
+                    </span>
+                  )}
+                  <span className={cn("text-xs font-medium shrink-0 hidden sm:inline", cfg.className)}>
+                    {cfg.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
 
