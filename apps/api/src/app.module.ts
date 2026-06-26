@@ -11,6 +11,7 @@ import { ChatModule } from './chat/chat.module';
 import { UploadModule } from './upload/upload.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AssistantModule } from './assistant/assistant.module';
     UploadModule,
     DashboardModule,
     AssistantModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

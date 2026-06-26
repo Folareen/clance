@@ -206,6 +206,59 @@ export interface ProjectDashboard {
   }[];
 }
 
+export interface SearchResults {
+  tasks: {
+    id: string;
+    title: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    task_number: number;
+    project_id: string;
+    project_name: string;
+    updated_at: string;
+  }[];
+  notes: {
+    id: string;
+    title: string;
+    pinned: boolean;
+    project_id: string;
+    project_name: string;
+    updated_at: string;
+  }[];
+  messages: {
+    id: string;
+    content: string;
+    channel_id: string;
+    sender_first_name: string | null;
+    sender_last_name: string | null;
+    sender_email: string;
+    project_id: string;
+    project_name: string;
+    channel_name: string | null;
+    channel_type: string;
+    created_at: string;
+  }[];
+  files: {
+    id: string;
+    filename: string;
+    url: string;
+    mimetype: string | null;
+    size: number | null;
+    project_id: string;
+    project_name: string;
+    created_at: string;
+  }[];
+  members: {
+    id: string;
+    email: string;
+    role: string;
+    project_id: string;
+    project_name: string;
+    first_name: string | null;
+    last_name: string | null;
+  }[];
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -484,4 +537,8 @@ export const api = {
       method: "POST",
       body: { message, history },
     }),
+
+  // Search
+  search: (query: string) =>
+    request<SearchResults>(`/api/search?q=${encodeURIComponent(query)}`),
 };
