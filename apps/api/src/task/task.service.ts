@@ -14,10 +14,14 @@ import {
   users,
 } from '../database/schema';
 import { CreateTaskDto, UpdateTaskDto, AssignTaskDto } from './dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class TaskService {
-  constructor(@Inject(DRIZZLE) private db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE) private db: DrizzleDB,
+    private notifications: NotificationService,
+  ) {}
 
   async create(project_id: string, dto: CreateTaskDto, user_id: string) {
     await this.requireActiveMember(project_id, user_id);
@@ -51,6 +55,15 @@ export class TaskService {
           member_id,
         })),
       );
+
+      const assigneeUserIds = await this.resolveUserIds(dto.assignee_ids);
+      this.notifications.createMany(assigneeUserIds, {
+        type: 'task_assigned',
+        title: `You were assigned to #${task.task_number} "${task.title}"`,
+        project_id,
+        link: `/projects/${project_id}/tasks`,
+        actor_id: user_id,
+      });
     }
 
     return this.findOne(project_id, task.id, user_id);
@@ -202,6 +215,28 @@ export class TaskService {
       .where(eq(tasks.id, task_id))
       .returning();
 
+    if (dto.status !== undefined && dto.status !== existing.status) {
+      const assigneeRows = await this.db
+        .select({ user_id: members.user_id })
+        .from(task_assignees)
+        .innerJoin(members, eq(members.id, task_assignees.member_id))
+        .where(eq(task_assignees.task_id, task_id));
+
+      const targetIds = [
+        existing.created_by,
+        ...assigneeRows.map((r) => r.user_id).filter(Boolean),
+      ].filter((id): id is string => !!id);
+
+      const label = dto.status.replace('_', ' ');
+      this.notifications.createMany([...new Set(targetIds)], {
+        type: 'task_status_changed',
+        title: `#${existing.task_number} "${existing.title}" moved to ${label}`,
+        project_id,
+        link: `/projects/${project_id}/tasks`,
+        actor_id: user_id,
+      });
+    }
+
     return updated;
   }
 
@@ -246,6 +281,15 @@ export class TaskService {
           member_id,
         })),
       );
+
+      const assigneeUserIds = await this.resolveUserIds(dto.member_ids);
+      this.notifications.createMany(assigneeUserIds, {
+        type: 'task_assigned',
+        title: `You were assigned to #${task.task_number} "${task.title}"`,
+        project_id,
+        link: `/projects/${project_id}/tasks`,
+        actor_id: user_id,
+      });
     }
 
     if (task.status === 'backlog' && dto.member_ids.length > 0) {
@@ -320,5 +364,14 @@ export class TaskService {
       throw new ForbiddenException('Only managers can perform this action');
     }
     return member;
+  }
+
+  private async resolveUserIds(memberIds: string[]): Promise<string[]> {
+    if (memberIds.length === 0) return [];
+    const rows = await this.db
+      .select({ user_id: members.user_id })
+      .from(members)
+      .where(sql`${members.id} IN ${memberIds}`);
+    return rows.map((r) => r.user_id).filter((id): id is string => !!id);
   }
 }

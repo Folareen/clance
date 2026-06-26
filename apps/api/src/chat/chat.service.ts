@@ -5,7 +5,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { eq, and, desc, or, asc } from 'drizzle-orm';
+import { eq, and, desc, or, asc, sql } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import {
   channels,
@@ -15,10 +15,14 @@ import {
   users,
 } from '../database/schema';
 import { CreateChannelDto, CreateDmDto } from './dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class ChatService {
-  constructor(@Inject(DRIZZLE) private db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE) private db: DrizzleDB,
+    private notifications: NotificationService,
+  ) {}
 
   async getOrCreateGeneralChannel(project_id: string, user_id: string) {
     const [existing] = await this.db
@@ -207,10 +211,80 @@ export class ChatService {
       .where(eq(users.id, user_id))
       .limit(1);
 
+    const [ch] = await this.db
+      .select({ type: channels.type })
+      .from(channels)
+      .where(eq(channels.id, channel_id))
+      .limit(1);
+
+    const senderName = sender.first_name
+      ? `${sender.first_name} ${sender.last_name ?? ''}`.trim()
+      : sender.email;
+
+    if (ch?.type === 'dm') {
+      const dmMembers = await this.db
+        .select({ user_id: channel_members.user_id })
+        .from(channel_members)
+        .where(eq(channel_members.channel_id, channel_id));
+
+      const recipientIds = dmMembers
+        .map((m) => m.user_id)
+        .filter((id) => id !== user_id);
+
+      this.notifications.createMany(recipientIds, {
+        type: 'dm_received',
+        title: `${senderName} sent you a message`,
+        body: content.length > 100 ? content.slice(0, 100) + '…' : content,
+        project_id,
+        link: `/projects/${project_id}/chat`,
+        actor_id: user_id,
+      });
+    }
+
+    const mentionedUsernames = this.parseMentions(content);
+    if (mentionedUsernames.length > 0) {
+      const mentionedUsers = await this.db
+        .select({ id: users.id })
+        .from(users)
+        .innerJoin(members, eq(members.user_id, users.id))
+        .where(
+          and(
+            eq(members.project_id, project_id),
+            eq(members.status, 'active'),
+            sql`${users.username} IN ${mentionedUsernames}`,
+          ),
+        );
+
+      const mentionedIds = mentionedUsers
+        .map((u) => u.id)
+        .filter((id) => id !== user_id);
+
+      if (mentionedIds.length > 0) {
+        this.notifications.createMany(mentionedIds, {
+          type: 'task_commented',
+          title: `${senderName} mentioned you`,
+          body: content.length > 100 ? content.slice(0, 100) + '…' : content,
+          project_id,
+          link: `/projects/${project_id}/chat`,
+          actor_id: user_id,
+        });
+      }
+    }
+
     return {
       ...message,
       sender: { id: user_id, ...sender },
     };
+  }
+
+  private parseMentions(content: string): string[] {
+    const re = /@([a-zA-Z0-9_]{3,40})/g;
+    const usernames: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(content)) !== null) {
+      usernames.push(match[1]);
+    }
+    return [...new Set(usernames)];
   }
 
   async getMessages(

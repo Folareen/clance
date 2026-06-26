@@ -117,13 +117,7 @@ Same project, different glance view depending on role.
 
 ---
 
-## 11. Activity Log
-
-Automatic record underneath everything: every status change, approval, rejection, edit, file upload, pinned decision, and meeting created — timestamped, visible to both sides identically.
-
----
-
-## 12. Notifications
+## 11. Notifications
 
 In-app + push + email. PWA support so push works without a native app.
 
@@ -131,7 +125,7 @@ Triggers: @mentions, assignment, submission, approval/rejection, pinned decision
 
 ---
 
-## 13. Page List
+## 12. Page List
 
 1. Dashboard — project list, create project, per-role glance
 2. Tasks — flat/tree views, detail, comments, attachments, subtasks

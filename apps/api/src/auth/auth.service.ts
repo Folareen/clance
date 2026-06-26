@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { users, refresh_tokens, password_resets, email_codes } from '../database/schema';
 import { EmailService } from '../email/email.service';
@@ -42,11 +42,13 @@ export class AuthService {
     }
 
     const password_hash = await bcrypt.hash(dto.password, this.BCRYPT_ROUNDS);
+    const username = await this.resolveUsername(dto.username, dto.email);
 
     const [user] = await this.db
       .insert(users)
       .values({
         email: dto.email,
+        username,
         password_hash,
         first_name: dto.first_name,
         last_name: dto.last_name,
@@ -61,6 +63,7 @@ export class AuthService {
       .select({
         id: users.id,
         email: users.email,
+        username: users.username,
         first_name: users.first_name,
         last_name: users.last_name,
         avatar_url: users.avatar_url,
@@ -118,10 +121,12 @@ export class AuthService {
           .set({ google_id: payload.sub, avatar_url: payload.picture })
           .where(eq(users.id, user.id));
       } else {
+        const username = await this.resolveUsername(undefined, payload.email);
         [user] = await this.db
           .insert(users)
           .values({
             email: payload.email,
+            username,
             google_id: payload.sub,
             first_name: payload.given_name,
             last_name: payload.family_name,
@@ -180,9 +185,10 @@ export class AuthService {
       .limit(1);
 
     if (!user) {
+      const username = await this.resolveUsername(undefined, dto.email);
       [user] = await this.db
         .insert(users)
-        .values({ email: dto.email.toLowerCase() })
+        .values({ email: dto.email.toLowerCase(), username })
         .returning();
     }
 
@@ -293,10 +299,11 @@ export class AuthService {
       .where(eq(refresh_tokens.token_hash, token_hash));
   }
 
-  private safeUser(user: { id: string; email: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
+  private safeUser(user: { id: string; email: string; username: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
     return {
       id: user.id,
       email: user.email,
+      username: user.username,
       first_name: user.first_name,
       last_name: user.last_name,
       avatar_url: user.avatar_url,
@@ -304,7 +311,7 @@ export class AuthService {
     };
   }
 
-  private async generateTokens(user: { id: string; email: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
+  private async generateTokens(user: { id: string; email: string; username: string; first_name: string | null; last_name: string | null; avatar_url: string | null; created_at: Date }) {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const access_token = this.jwt.sign(payload, {
@@ -331,6 +338,24 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async resolveUsername(preferred: string | undefined, email: string): Promise<string> {
+    let base = preferred ?? email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 35);
+    if (base.length < 3) base = base + '_user';
+
+    let candidate = base;
+    let attempt = 0;
+    while (true) {
+      const [existing] = await this.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.username, candidate))
+        .limit(1);
+      if (!existing) return candidate;
+      attempt++;
+      candidate = `${base}${attempt}`;
+    }
   }
 
   private async verifyGoogleToken(id_token: string) {

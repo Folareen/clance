@@ -12,6 +12,7 @@ import { UploadModule } from './upload/upload.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { SearchModule } from './search/search.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SearchModule } from './search/search.module';
     DashboardModule,
     AssistantModule,
     SearchModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,14 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, Bell } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useAuth } from "./auth-provider";
 import { fullName, initials } from "@/lib/display";
+import { api } from "@/lib/api";
 
 export function TopBar() {
   const { user } = useAuth();
   const userInitials = initials(fullName(user)) || "?";
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    api.unreadCount().then((r) => setUnread(r.count)).catch(() => {});
+  }, []);
 
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 sm:px-6 bg-surface/80 backdrop-blur-md border-b border-stroke">
@@ -41,7 +48,11 @@ export function TopBar() {
           className="relative flex items-center justify-center w-9 h-9 rounded-lg border border-stroke bg-surface hover:bg-surface-hover text-content-secondary transition-colors"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-danger rounded-full" />
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-danger text-white text-[10px] font-bold rounded-full px-1">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
         </Link>
         <Link
           href="/settings"

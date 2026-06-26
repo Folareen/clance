@@ -19,6 +19,7 @@ import {
   UpdateMemberDto,
   AcceptInviteWithSignupDto,
 } from './dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class ProjectService {
@@ -26,6 +27,7 @@ export class ProjectService {
     @Inject(DRIZZLE) private db: DrizzleDB,
     private email: EmailService,
     private auth: AuthService,
+    private notificationService: NotificationService,
   ) {}
 
   async create(dto: CreateProjectDto, user: AuthUser) {
@@ -162,6 +164,17 @@ export class ProjectService {
 
     const inviter_name = await this.getUserDisplayName(user.id);
     await this.email.sendProjectInviteEmail(dto.email, invite_token, project.name, inviter_name);
+
+    if (invitee) {
+      this.notificationService.create({
+        user_id: invitee.id,
+        type: 'project_invited',
+        title: `${inviter_name} invited you to "${project.name}"`,
+        project_id,
+        link: `/invite?token=${invite_token}`,
+        actor_id: user.id,
+      });
+    }
   }
 
   async acceptInvite(token: string, user: AuthUser) {
@@ -191,6 +204,35 @@ export class ProjectService {
         joined_at: new Date(),
       })
       .where(eq(members.id, member.id));
+
+    const managerRows = await this.db
+      .select({ user_id: members.user_id })
+      .from(members)
+      .where(
+        and(
+          eq(members.project_id, member.project_id),
+          eq(members.role, 'manager'),
+          eq(members.status, 'active'),
+        ),
+      );
+
+    const [project] = await this.db
+      .select({ name: projects.name })
+      .from(projects)
+      .where(eq(projects.id, member.project_id))
+      .limit(1);
+
+    const joinerName = await this.getUserDisplayName(user.id);
+    this.notificationService.createMany(
+      managerRows.map((r) => r.user_id).filter((id): id is string => !!id),
+      {
+        type: 'member_joined',
+        title: `${joinerName} joined "${project?.name ?? 'the project'}"`,
+        project_id: member.project_id,
+        link: `/projects/${member.project_id}`,
+        actor_id: user.id,
+      },
+    );
   }
 
   async acceptInviteWithSignup(dto: AcceptInviteWithSignupDto) {

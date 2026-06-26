@@ -3,6 +3,7 @@ import { SESSION_HINT_COOKIE } from "@/lib/constants";
 export interface User {
   id: string;
   email: string;
+  username: string;
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
@@ -257,6 +258,34 @@ export interface SearchResults {
     first_name: string | null;
     last_name: string | null;
   }[];
+}
+
+export type NotificationType =
+  | "task_assigned"
+  | "task_status_changed"
+  | "task_commented"
+  | "project_invited"
+  | "member_joined"
+  | "dm_received";
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  project_id: string | null;
+  link: string | null;
+  read: boolean;
+  actor_id: string | null;
+  created_at: string;
+  actor: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+  project_name: string | null;
 }
 
 export class ApiError extends Error {
@@ -541,4 +570,17 @@ export const api = {
   // Search
   search: (query: string) =>
     request<SearchResults>(`/api/search?q=${encodeURIComponent(query)}`),
+
+  // Notifications
+  listNotifications: () =>
+    request<Notification[]>("/api/notifications"),
+
+  unreadCount: () =>
+    request<{ count: number }>("/api/notifications/unread-count"),
+
+  markRead: (id: string) =>
+    request<void>(`/api/notifications/${id}/read`, { method: "PATCH" }),
+
+  markAllRead: () =>
+    request<void>("/api/notifications/read-all", { method: "POST" }),
 };

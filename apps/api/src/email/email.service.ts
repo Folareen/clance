@@ -40,6 +40,23 @@ export class EmailService {
     });
   }
 
+  async sendNotificationEmail(to: string, title: string, body?: string, link?: string) {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    const fullLink = link ? `${frontendUrl}${link}` : frontendUrl;
+
+    await this.resend.emails.send({
+      from: this.fromEmail,
+      to,
+      subject: title,
+      html: `
+        <p>${title}</p>
+        ${body ? `<p style="color:#6b7280;font-size:14px">${body}</p>` : ''}
+        <p><a href="${fullLink}">View in Clance</a></p>
+        <p style="color:#9ca3af;font-size:12px;margin-top:24px">You received this because of your notification settings on Clance.</p>
+      `,
+    });
+  }
+
   async sendPasswordResetEmail(to: string, token: string) {
     const resetUrl = `${this.config.getOrThrow<string>('FRONTEND_URL')}/reset-password?token=${token}`;
 
