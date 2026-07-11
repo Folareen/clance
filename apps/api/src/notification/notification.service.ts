@@ -10,7 +10,10 @@ type NotificationType =
   | 'task_commented'
   | 'project_invited'
   | 'member_joined'
-  | 'dm_received';
+  | 'dm_received'
+  | 'meeting_created'
+  | 'mentioned'
+  | 'message_pinned';
 
 @Injectable()
 export class NotificationService {

@@ -14,6 +14,7 @@ import { AssistantModule } from './assistant/assistant.module';
 import { SearchModule } from './search/search.module';
 import { NotificationModule } from './notification/notification.module';
 import { ActivityModule } from './activity/activity.module';
+import { MeetingModule } from './meeting/meeting.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ActivityModule } from './activity/activity.module';
     SearchModule,
     NotificationModule,
     ActivityModule,
+    MeetingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

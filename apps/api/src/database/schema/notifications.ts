@@ -17,6 +17,9 @@ export const notification_type = pgEnum('notification_type', [
   'project_invited',
   'member_joined',
   'dm_received',
+  'meeting_created',
+  'mentioned',
+  'message_pinned',
 ]);
 
 export const notifications = pgTable('notifications', {

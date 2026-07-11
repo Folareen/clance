@@ -165,6 +165,61 @@ export interface PersonalFileRecord extends FileRecord {
   source_label: string;
 }
 
+export type ActivityType =
+  | "task_created"
+  | "task_status_changed"
+  | "task_assigned"
+  | "task_deleted"
+  | "note_pinned"
+  | "note_unpinned"
+  | "file_uploaded"
+  | "meeting_created"
+  | "message_pinned"
+  | "member_invited"
+  | "member_joined"
+  | "member_removed"
+  | "member_role_changed"
+  | "project_updated";
+
+export interface ActivityActor {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+export interface ActivityEntry {
+  id: string;
+  project_id: string;
+  actor_id: string | null;
+  type: ActivityType;
+  summary: string;
+  body: string | null;
+  link: string | null;
+  created_at: string;
+  actor: ActivityActor | null;
+}
+
+export interface MeetingCreator {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+export interface Meeting {
+  id: string;
+  project_id: string;
+  task_id: string | null;
+  title: string;
+  join_url: string;
+  created_by: string;
+  created_at: string;
+  creator: MeetingCreator;
+  task_title: string | null;
+  task_number: number | null;
+}
+
 export interface ProjectRecentTask {
   id: string;
   title: string;
@@ -560,6 +615,20 @@ export const api = {
     request<FileRecord[]>(`/api/projects/${projectId}/files`),
 
   listMyFiles: () => request<PersonalFileRecord[]>("/api/files"),
+
+  // Meetings
+  listMeetings: (projectId: string) =>
+    request<Meeting[]>(`/api/projects/${projectId}/meetings`),
+
+  createMeeting: (projectId: string, b: { title: string; task_id?: string }) =>
+    request<Meeting>(`/api/projects/${projectId}/meetings`, {
+      method: "POST",
+      body: b,
+    }),
+
+  // Activity
+  listActivity: (projectId: string) =>
+    request<ActivityEntry[]>(`/api/projects/${projectId}/activity`),
 
   // Dashboard
   getDashboardStats: () =>
