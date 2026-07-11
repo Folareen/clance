@@ -192,13 +192,13 @@ const GRID_FEATURES = [
   },
   {
     icon: Sparkles,
-    title: "An AI assistant that knows its place",
-    body: "Read-only Q&A over your real project data, plus manager-only task drafts that need a human to confirm. It never auto-creates.",
+    title: "An AI assistant that knows its place — coming soon",
+    body: "Read-only Q&A over your real project data, plus manager-only task drafts that need a human to confirm. It will never auto-create.",
   },
   {
     icon: Video,
-    title: "Meetings, embedded",
-    body: "Start a Zoom or Meet call from a task or chat and it's embedded in-app, not just linked — and logged to the activity feed.",
+    title: "Meetings, one click away",
+    body: "Start a call from a task or chat and get a real, joinable link instantly — logged to the activity feed, tied back to the work it's about.",
   },
   {
     icon: Bell,

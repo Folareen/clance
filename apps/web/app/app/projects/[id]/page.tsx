@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   CheckSquare,
@@ -12,11 +12,19 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  Send,
+  Users as UsersIcon,
+  Loader2,
 } from "lucide-react";
 import { ProjectAvatar } from "@/components/project-avatar";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
-import { api, type ProjectDashboard, type TaskStatus } from "@/lib/api";
+import {
+  api,
+  type ProjectDashboard,
+  type TaskStatus,
+  type DashboardTaskSummary,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const statusConfig: Record<
@@ -44,10 +52,14 @@ export default function ProjectOverview() {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState<ProjectDashboard | null>(null);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     if (!project) return;
     api.getProjectDashboard(project.id).then(setDashboard).catch(() => {});
   }, [project?.id]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   if (!project) return null;
 
@@ -132,6 +144,18 @@ export default function ProjectOverview() {
         </div>
       )}
 
+      {/* Role-specific widgets */}
+      {dashboard && dashboard.role === "manager" && (
+        <ManagerWidgets dashboard={dashboard} projectId={project.id} />
+      )}
+      {dashboard && dashboard.role === "worker" && (
+        <WorkerWidgets
+          dashboard={dashboard}
+          projectId={project.id}
+          onChanged={loadDashboard}
+        />
+      )}
+
       {/* Recently updated */}
       {dashboard && dashboard.recent_tasks.length > 0 && (
         <div className="mb-6">
@@ -195,6 +219,184 @@ export default function ProjectOverview() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+const priorityDot: Record<string, string> = {
+  urgent: "bg-danger",
+  high: "bg-warning",
+  medium: "bg-info",
+  low: "bg-content-muted",
+  none: "bg-transparent",
+};
+
+function TaskRefRow({
+  task,
+  projectId,
+  trailing,
+}: {
+  task: DashboardTaskSummary;
+  projectId: string;
+  trailing?: React.ReactNode;
+}) {
+  const overdue =
+    task.due_date && new Date(task.due_date) < new Date();
+
+  return (
+    <Link
+      href={`/app/projects/${projectId}/tasks`}
+      className="flex items-center gap-3 px-5 py-3 hover:bg-surface-hover/50 transition-colors group"
+    >
+      {task.priority && (
+        <span
+          className={cn("w-1.5 h-1.5 rounded-full shrink-0", priorityDot[task.priority])}
+          title={task.priority}
+        />
+      )}
+      <span className="text-xs text-content-muted font-mono shrink-0">
+        #{task.task_number}
+      </span>
+      <span className="text-sm font-medium text-content truncate flex-1 group-hover:text-accent transition-colors">
+        {task.title}
+      </span>
+      {task.due_date && (
+        <span className={cn("text-xs shrink-0", overdue ? "text-danger font-medium" : "text-content-secondary")}>
+          {formatDue(task.due_date)}
+        </span>
+      )}
+      {trailing}
+    </Link>
+  );
+}
+
+function WorkerWidgets({
+  dashboard,
+  projectId,
+  onChanged,
+}: {
+  dashboard: ProjectDashboard;
+  projectId: string;
+  onChanged: () => void;
+}) {
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const pending = dashboard.my_pending_tasks ?? [];
+  const awaitingAction = dashboard.awaiting_my_action ?? [];
+
+  const handleQuickSubmit = async (taskId: string) => {
+    setSubmitting(taskId);
+    try {
+      await api.updateTask(projectId, taskId, { status: "submitted" });
+      onChanged();
+    } catch {
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div className="mb-6 space-y-6">
+      {awaitingAction.length > 0 && (
+        <div>
+          <h2 className="text-xs font-medium text-content-muted uppercase tracking-wider mb-3">
+            Awaiting your action
+          </h2>
+          <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+            {awaitingAction.map((task) => (
+              <TaskRefRow
+                key={task.id}
+                task={task}
+                projectId={projectId}
+                trailing={
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleQuickSubmit(task.id);
+                    }}
+                    disabled={submitting === task.id}
+                    className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover transition-colors shrink-0 disabled:opacity-60"
+                  >
+                    {submitting === task.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    Submit
+                  </button>
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h2 className="text-xs font-medium text-content-muted uppercase tracking-wider mb-3">
+          My pending tasks
+        </h2>
+        <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+          {pending.map((task) => (
+            <TaskRefRow key={task.id} task={task} projectId={projectId} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManagerWidgets({
+  dashboard,
+  projectId,
+}: {
+  dashboard: ProjectDashboard;
+  projectId: string;
+}) {
+  const awaitingApproval = dashboard.awaiting_approval ?? [];
+  const blockedOverdue = dashboard.blocked_overdue ?? [];
+
+  if (awaitingApproval.length === 0 && blockedOverdue.length === 0) return null;
+
+  return (
+    <div className="mb-6 space-y-6">
+      {awaitingApproval.length > 0 && (
+        <div>
+          <h2 className="text-xs font-medium text-content-muted uppercase tracking-wider mb-3">
+            Awaiting your approval
+          </h2>
+          <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+            {awaitingApproval.map((task) => (
+              <TaskRefRow key={task.id} task={task} projectId={projectId} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {blockedOverdue.length > 0 && (
+        <div>
+          <h2 className="text-xs font-medium text-content-muted uppercase tracking-wider mb-3">
+            Blocked / overdue
+          </h2>
+          <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+            {blockedOverdue.map((task) => (
+              <TaskRefRow
+                key={task.id}
+                task={task}
+                projectId={projectId}
+                trailing={
+                  task.assignees.length > 0 && (
+                    <span className="flex items-center gap-1.5 text-xs text-content-muted shrink-0">
+                      <UsersIcon className="w-3.5 h-3.5" />
+                      {task.assignees.join(", ")}
+                    </span>
+                  )
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

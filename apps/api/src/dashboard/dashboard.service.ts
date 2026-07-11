@@ -6,6 +6,7 @@ import {
   members,
   tasks,
   task_assignees,
+  users,
 } from '../database/schema';
 
 @Injectable()
@@ -185,7 +186,7 @@ export class DashboardService {
       .orderBy(sql`${tasks.updated_at} desc`)
       .limit(6);
 
-    return {
+    const base = {
       tasks_by_status: {
         backlog: counts.backlog,
         in_progress: counts.in_progress,
@@ -196,6 +197,108 @@ export class DashboardService {
       overdue_tasks: counts.overdue,
       my_tasks: myResult.count,
       recent_tasks: recentTasks,
+      role: member.role,
+    };
+
+    if (member.role === 'manager') {
+      const awaitingApproval = await this.db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          priority: tasks.priority,
+          due_date: tasks.due_date,
+          task_number: tasks.task_number,
+          updated_at: tasks.updated_at,
+        })
+        .from(tasks)
+        .where(and(eq(tasks.project_id, project_id), eq(tasks.status, 'submitted')))
+        .orderBy(sql`${tasks.updated_at} asc`)
+        .limit(10);
+
+      const overdueRows = await this.db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          due_date: tasks.due_date,
+          task_number: tasks.task_number,
+        })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.project_id, project_id),
+            sql`${tasks.due_date} < now()`,
+            sql`${tasks.status} != 'approved'`,
+          ),
+        )
+        .orderBy(sql`${tasks.due_date} asc`)
+        .limit(10);
+
+      const overdueTaskIds = overdueRows.map((t) => t.id);
+      const assigneeRows = overdueTaskIds.length
+        ? await this.db
+            .select({
+              task_id: task_assignees.task_id,
+              email: members.email,
+              first_name: users.first_name,
+              last_name: users.last_name,
+            })
+            .from(task_assignees)
+            .innerJoin(members, eq(members.id, task_assignees.member_id))
+            .leftJoin(users, eq(users.id, members.user_id))
+            .where(sql`${task_assignees.task_id} IN ${overdueTaskIds}`)
+        : [];
+
+      const assigneesByTask = new Map<string, string[]>();
+      for (const a of assigneeRows) {
+        const name = a.first_name
+          ? `${a.first_name} ${a.last_name ?? ''}`.trim()
+          : a.email;
+        const list = assigneesByTask.get(a.task_id) ?? [];
+        list.push(name);
+        assigneesByTask.set(a.task_id, list);
+      }
+
+      return {
+        ...base,
+        awaiting_approval: awaitingApproval,
+        blocked_overdue: overdueRows.map((t) => ({
+          ...t,
+          assignees: assigneesByTask.get(t.id) ?? [],
+        })),
+      };
+    }
+
+    const myPending = await this.db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        priority: tasks.priority,
+        due_date: tasks.due_date,
+        task_number: tasks.task_number,
+      })
+      .from(task_assignees)
+      .innerJoin(tasks, eq(tasks.id, task_assignees.task_id))
+      .where(
+        and(
+          eq(task_assignees.member_id, member.id),
+          sql`${tasks.status} != 'approved'`,
+        ),
+      )
+      .orderBy(
+        sql`case ${tasks.priority}
+          when 'urgent' then 0 when 'high' then 1 when 'medium' then 2
+          when 'low' then 3 else 4 end`,
+        sql`${tasks.due_date} asc nulls last`,
+      )
+      .limit(10);
+
+    const awaitingMyAction = myPending.filter((t) => t.status === 'in_progress');
+
+    return {
+      ...base,
+      my_pending_tasks: myPending,
+      awaiting_my_action: awaitingMyAction,
     };
   }
 }

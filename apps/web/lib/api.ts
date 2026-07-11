@@ -257,6 +257,25 @@ export interface DashboardStats {
   projects: ProjectStats[];
 }
 
+export interface DashboardTaskRef {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  task_number: number;
+  updated_at: string;
+}
+
+export interface DashboardTaskSummary {
+  id: string;
+  title: string;
+  priority?: TaskPriority;
+  due_date: string | null;
+  task_number: number;
+  updated_at?: string;
+}
+
 export interface ProjectDashboard {
   tasks_by_status: {
     backlog: number;
@@ -267,15 +286,14 @@ export interface ProjectDashboard {
   total_tasks: number;
   overdue_tasks: number;
   my_tasks: number;
-  recent_tasks: {
-    id: string;
-    title: string;
-    status: TaskStatus;
-    priority: TaskPriority;
-    due_date: string | null;
-    task_number: number;
-    updated_at: string;
-  }[];
+  recent_tasks: DashboardTaskRef[];
+  role: Role;
+  // worker fields
+  my_pending_tasks?: DashboardTaskSummary[];
+  awaiting_my_action?: DashboardTaskSummary[];
+  // manager fields
+  awaiting_approval?: DashboardTaskSummary[];
+  blocked_overdue?: (DashboardTaskSummary & { assignees: string[] })[];
 }
 
 export interface SearchResults {
