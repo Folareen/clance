@@ -229,7 +229,7 @@ export class ProjectService {
         type: 'member_joined',
         title: `${joinerName} joined "${project?.name ?? 'the project'}"`,
         project_id: member.project_id,
-        link: `/projects/${member.project_id}`,
+        link: `/app/projects/${member.project_id}`,
         actor_id: user.id,
       },
     );
@@ -342,6 +342,25 @@ export class ProjectService {
       .limit(1);
 
     if (!member) throw new NotFoundException('Member not found');
+
+    if (member.role === 'manager' && dto.role === 'worker') {
+      const other_managers = await this.db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.project_id, project_id),
+            eq(members.role, 'manager'),
+            eq(members.status, 'active'),
+          ),
+        );
+
+      if (other_managers.length <= 1) {
+        throw new ForbiddenException(
+          'Cannot demote the only manager. Promote another member first.',
+        );
+      }
+    }
 
     await this.db
       .update(members)

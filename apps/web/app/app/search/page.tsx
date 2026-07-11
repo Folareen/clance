@@ -141,7 +141,7 @@ function SearchContent() {
                   return (
                     <Link
                       key={task.id}
-                      href={`/projects/${task.project_id}/tasks`}
+                      href={`/app/projects/${task.project_id}/tasks`}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
                     >
                       <Icon className={cn("w-4 h-4 shrink-0", cfg.className)} />
@@ -166,7 +166,7 @@ function SearchContent() {
                 {results!.notes.map((note) => (
                   <Link
                     key={note.id}
-                    href={`/projects/${note.project_id}/notes`}
+                    href={`/app/projects/${note.project_id}/notes`}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
                   >
                     <FileText className="w-4 h-4 text-content-muted shrink-0" />
@@ -196,7 +196,7 @@ function SearchContent() {
                   return (
                     <Link
                       key={msg.id}
-                      href={`/projects/${msg.project_id}/chat`}
+                      href={`/app/projects/${msg.project_id}/chat`}
                       className="flex items-start gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
                     >
                       <MessageCircle className="w-4 h-4 text-content-muted shrink-0 mt-0.5" />
@@ -265,7 +265,7 @@ function SearchContent() {
                   return (
                     <Link
                       key={`${member.id}-${member.project_id}`}
-                      href={`/projects/${member.project_id}`}
+                      href={`/app/projects/${member.project_id}`}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
                     >
                       <div className="w-7 h-7 rounded-full bg-accent-soft flex items-center justify-center text-[10px] font-semibold text-accent shrink-0">

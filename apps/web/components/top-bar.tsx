@@ -19,7 +19,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 h-14 px-4 sm:px-6 bg-surface/80 backdrop-blur-md border-b border-stroke">
-      <Link href="/" className="flex items-center gap-2.5 shrink-0">
+      <Link href="/app" className="flex items-center gap-2.5 shrink-0">
         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
           <span className="text-white font-bold text-sm">C</span>
         </div>
@@ -30,7 +30,7 @@ export function TopBar() {
 
       <div className="flex-1 max-w-md mx-auto">
         <Link
-          href="/search"
+          href="/app/search"
           className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg border border-stroke bg-surface-secondary text-content-muted text-sm hover:border-accent/30 transition-colors"
         >
           <Search className="w-4 h-4 shrink-0" />
@@ -44,7 +44,7 @@ export function TopBar() {
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <ThemeToggle variant="inline" />
         <Link
-          href="/notifications"
+          href="/app/notifications"
           className="relative flex items-center justify-center w-9 h-9 rounded-lg border border-stroke bg-surface hover:bg-surface-hover text-content-secondary transition-colors"
         >
           <Bell className="w-4 h-4" />
@@ -55,7 +55,7 @@ export function TopBar() {
           )}
         </Link>
         <Link
-          href="/settings"
+          href="/app/settings"
           className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold hover:opacity-90 transition-opacity"
         >
           {userInitials}

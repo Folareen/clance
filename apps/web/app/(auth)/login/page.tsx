@@ -12,7 +12,7 @@ import { api, ApiError } from "@/lib/api";
 function LoginForm() {
   const { login, codeLogin } = useAuth();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/";
+  const from = searchParams.get("from") || "/app";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

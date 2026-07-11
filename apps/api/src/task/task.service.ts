@@ -61,7 +61,7 @@ export class TaskService {
         type: 'task_assigned',
         title: `You were assigned to #${task.task_number} "${task.title}"`,
         project_id,
-        link: `/projects/${project_id}/tasks`,
+        link: `/app/projects/${project_id}/tasks`,
         actor_id: user_id,
       });
     }
@@ -232,7 +232,7 @@ export class TaskService {
         type: 'task_status_changed',
         title: `#${existing.task_number} "${existing.title}" moved to ${label}`,
         project_id,
-        link: `/projects/${project_id}/tasks`,
+        link: `/app/projects/${project_id}/tasks`,
         actor_id: user_id,
       });
     }
@@ -287,7 +287,7 @@ export class TaskService {
         type: 'task_assigned',
         title: `You were assigned to #${task.task_number} "${task.title}"`,
         project_id,
-        link: `/projects/${project_id}/tasks`,
+        link: `/app/projects/${project_id}/tasks`,
         actor_id: user_id,
       });
     }

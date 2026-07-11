@@ -26,7 +26,7 @@ function ProjectShell({ children }: { children: React.ReactNode }) {
           It may have been deleted, or you don&apos;t have access to it.
         </p>
         <Link
-          href="/"
+          href="/app"
           className="mt-5 inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <ArrowLeft className="w-4 h-4" />

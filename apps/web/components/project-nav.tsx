@@ -11,6 +11,7 @@ import {
   Video,
   Activity,
   Sparkles,
+  Settings,
   ChevronLeft,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
@@ -23,7 +24,7 @@ import type { Role } from "@/lib/api";
 type NavProject = { id: string; name: string; role?: Role };
 
 function buildNav(projectId: string) {
-  const base = `/projects/${projectId}`;
+  const base = `/app/projects/${projectId}`;
   return {
     primary: [
       { name: "Overview", href: base, icon: LayoutDashboard, exact: true },
@@ -36,6 +37,7 @@ function buildNav(projectId: string) {
       { name: "Meetings", href: `${base}/meetings`, icon: Video },
       { name: "Activity", href: `${base}/activity`, icon: Activity },
       { name: "AI Assistant", href: `${base}/assistant`, icon: Sparkles },
+      { name: "Settings", href: `${base}/settings`, icon: Settings },
     ],
   };
 }
@@ -65,7 +67,7 @@ export function ProjectNav({ project }: { project: NavProject }) {
       {/* Desktop: left sidebar */}
       <aside className="hidden md:flex flex-col w-60 min-w-60 h-screen bg-surface border-r border-stroke">
         <Link
-          href="/"
+          href="/app"
           className="flex items-center gap-2 px-4 h-14 shrink-0 text-content-secondary hover:text-content text-sm transition-colors border-b border-stroke-secondary"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -125,7 +127,7 @@ export function ProjectNav({ project }: { project: NavProject }) {
         <div className="p-3 border-t border-stroke-secondary space-y-1">
           <ThemeToggle variant="project" />
           <Link
-            href="/settings"
+            href="/app/settings"
             className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors"
           >
             <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold">

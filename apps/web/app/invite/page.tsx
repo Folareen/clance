@@ -59,7 +59,7 @@ function InviteFlow() {
         last_name: trimmed.split(/\s+/).slice(1).join(" ") || undefined,
       });
       await refreshUser();
-      router.push("/");
+      router.push("/app");
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Couldn't accept the invite"
@@ -78,7 +78,7 @@ function InviteFlow() {
           </p>
         </div>
         <Link
-          href="/"
+          href="/app"
           className="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium py-2.5 rounded-lg transition-colors"
         >
           Go to projects

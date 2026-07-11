@@ -236,7 +236,7 @@ export class ChatService {
         title: `${senderName} sent you a message`,
         body: content.length > 100 ? content.slice(0, 100) + '…' : content,
         project_id,
-        link: `/projects/${project_id}/chat`,
+        link: `/app/projects/${project_id}/chat`,
         actor_id: user_id,
       });
     }
@@ -265,7 +265,7 @@ export class ChatService {
           title: `${senderName} mentioned you`,
           body: content.length > 100 ? content.slice(0, 100) + '…' : content,
           project_id,
-          link: `/projects/${project_id}/chat`,
+          link: `/app/projects/${project_id}/chat`,
           actor_id: user_id,
         });
       }

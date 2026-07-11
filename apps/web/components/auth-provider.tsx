@@ -21,7 +21,7 @@ export function useAuth() {
     async (email: string, password: string, redirectTo?: string) => {
       const result = await dispatch(loginThunk({ email, password }));
       if (loginThunk.fulfilled.match(result)) {
-        router.push(redirectTo || "/");
+        router.push(redirectTo || "/app");
       } else {
         throw new Error(result.error.message ?? "Login failed");
       }
@@ -41,7 +41,7 @@ export function useAuth() {
     ) => {
       const result = await dispatch(signupThunk(data));
       if (signupThunk.fulfilled.match(result)) {
-        router.push(redirectTo || "/");
+        router.push(redirectTo || "/app");
       } else {
         throw new Error(result.error.message ?? "Signup failed");
       }
@@ -53,7 +53,7 @@ export function useAuth() {
     async (idToken: string, redirectTo?: string) => {
       const result = await dispatch(googleLoginThunk(idToken));
       if (googleLoginThunk.fulfilled.match(result)) {
-        router.push(redirectTo || "/");
+        router.push(redirectTo || "/app");
       } else {
         throw new Error(result.error.message ?? "Google login failed");
       }
@@ -65,7 +65,7 @@ export function useAuth() {
     async (email: string, code: string, redirectTo?: string) => {
       const result = await dispatch(codeLoginThunk({ email, code }));
       if (codeLoginThunk.fulfilled.match(result)) {
-        router.push(redirectTo || "/");
+        router.push(redirectTo || "/app");
       } else {
         throw new Error(result.error.message ?? "Code verification failed");
       }
