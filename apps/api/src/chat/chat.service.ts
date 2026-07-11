@@ -5,12 +5,13 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { eq, and, desc, or, asc, sql } from 'drizzle-orm';
+import { eq, and, desc, or, asc, sql, inArray } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import {
   channels,
   channel_members,
   messages,
+  message_reactions,
   members,
   users,
 } from '../database/schema';
@@ -191,13 +192,28 @@ export class ChatService {
     channel_id: string,
     content: string,
     user_id: string,
+    parent_message_id?: string,
   ) {
     await this.requireActiveMember(project_id, user_id);
     await this.requireChannelAccess(project_id, channel_id, user_id);
 
+    if (parent_message_id) {
+      const [parent] = await this.db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.id, parent_message_id),
+            eq(messages.channel_id, channel_id),
+          ),
+        )
+        .limit(1);
+      if (!parent) throw new NotFoundException('Message not found');
+    }
+
     const [message] = await this.db
       .insert(messages)
-      .values({ channel_id, sender_id: user_id, content })
+      .values({ channel_id, sender_id: user_id, content, parent_message_id })
       .returning();
 
     const [sender] = await this.db
@@ -274,6 +290,8 @@ export class ChatService {
     return {
       ...message,
       sender: { id: user_id, ...sender },
+      reply_count: 0,
+      reactions: [],
     };
   }
 
@@ -297,7 +315,7 @@ export class ChatService {
     await this.requireActiveMember(project_id, user_id);
     await this.requireChannelAccess(project_id, channel_id, user_id);
 
-    let query = this.db
+    const rows = await this.db
       .select({
         message: messages,
         first_name: users.first_name,
@@ -307,28 +325,181 @@ export class ChatService {
       })
       .from(messages)
       .innerJoin(users, eq(users.id, messages.sender_id))
-      .where(eq(messages.channel_id, channel_id))
+      .where(
+        and(
+          eq(messages.channel_id, channel_id),
+          sql`${messages.parent_message_id} IS NULL`,
+        ),
+      )
       .orderBy(desc(messages.created_at))
       .limit(limit + 1);
 
-    const rows = await query;
-
     const hasMore = rows.length > limit;
-    const items = (hasMore ? rows.slice(0, limit) : rows).map((r) => ({
-      ...r.message,
-      sender: {
-        id: r.message.sender_id,
-        first_name: r.first_name,
-        last_name: r.last_name,
-        email: r.email,
-        avatar_url: r.avatar_url,
-      },
-    }));
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const items = await this.enrichMessages(pageRows, user_id);
 
     return {
       messages: items.reverse(),
       hasMore,
     };
+  }
+
+  async getThread(
+    project_id: string,
+    channel_id: string,
+    parent_message_id: string,
+    user_id: string,
+  ) {
+    await this.requireActiveMember(project_id, user_id);
+    await this.requireChannelAccess(project_id, channel_id, user_id);
+
+    const [parentRow] = await this.db
+      .select({
+        message: messages,
+        first_name: users.first_name,
+        last_name: users.last_name,
+        email: users.email,
+        avatar_url: users.avatar_url,
+      })
+      .from(messages)
+      .innerJoin(users, eq(users.id, messages.sender_id))
+      .where(
+        and(eq(messages.id, parent_message_id), eq(messages.channel_id, channel_id)),
+      )
+      .limit(1);
+
+    if (!parentRow) throw new NotFoundException('Message not found');
+
+    const replyRows = await this.db
+      .select({
+        message: messages,
+        first_name: users.first_name,
+        last_name: users.last_name,
+        email: users.email,
+        avatar_url: users.avatar_url,
+      })
+      .from(messages)
+      .innerJoin(users, eq(users.id, messages.sender_id))
+      .where(eq(messages.parent_message_id, parent_message_id))
+      .orderBy(asc(messages.created_at));
+
+    const [parent] = await this.enrichMessages([parentRow], user_id);
+    const replies = await this.enrichMessages(replyRows, user_id);
+
+    return { parent, replies };
+  }
+
+  private async enrichMessages(
+    rows: {
+      message: typeof messages.$inferSelect;
+      first_name: string | null;
+      last_name: string | null;
+      email: string;
+      avatar_url: string | null;
+    }[],
+    viewer_id: string,
+  ) {
+    const messageIds = rows.map((r) => r.message.id);
+
+    const replyCounts = messageIds.length
+      ? await this.db
+          .select({
+            parent_message_id: messages.parent_message_id,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(messages)
+          .where(inArray(messages.parent_message_id, messageIds))
+          .groupBy(messages.parent_message_id)
+      : [];
+
+    const reactionRows = messageIds.length
+      ? await this.db
+          .select({
+            message_id: message_reactions.message_id,
+            emoji: message_reactions.emoji,
+            user_id: message_reactions.user_id,
+          })
+          .from(message_reactions)
+          .where(inArray(message_reactions.message_id, messageIds))
+      : [];
+
+    const replyCountMap = new Map(
+      replyCounts.map((r) => [r.parent_message_id, r.count]),
+    );
+
+    const reactionsByMessage = new Map<string, Map<string, string[]>>();
+    for (const r of reactionRows) {
+      if (!reactionsByMessage.has(r.message_id)) {
+        reactionsByMessage.set(r.message_id, new Map());
+      }
+      const byEmoji = reactionsByMessage.get(r.message_id)!;
+      if (!byEmoji.has(r.emoji)) byEmoji.set(r.emoji, []);
+      byEmoji.get(r.emoji)!.push(r.user_id);
+    }
+
+    return rows.map((r) => {
+      const byEmoji = reactionsByMessage.get(r.message.id);
+      const reactions = byEmoji
+        ? [...byEmoji.entries()].map(([emoji, userIds]) => ({
+            emoji,
+            count: userIds.length,
+            reacted: userIds.includes(viewer_id),
+          }))
+        : [];
+
+      return {
+        ...r.message,
+        sender: {
+          id: r.message.sender_id,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          email: r.email,
+          avatar_url: r.avatar_url,
+        },
+        reply_count: replyCountMap.get(r.message.id) ?? 0,
+        reactions,
+      };
+    });
+  }
+
+  async toggleReaction(
+    project_id: string,
+    channel_id: string,
+    message_id: string,
+    emoji: string,
+    user_id: string,
+  ) {
+    await this.requireActiveMember(project_id, user_id);
+    await this.requireChannelAccess(project_id, channel_id, user_id);
+
+    const [message] = await this.db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.id, message_id), eq(messages.channel_id, channel_id)))
+      .limit(1);
+    if (!message) throw new NotFoundException('Message not found');
+
+    const [existing] = await this.db
+      .select()
+      .from(message_reactions)
+      .where(
+        and(
+          eq(message_reactions.message_id, message_id),
+          eq(message_reactions.user_id, user_id),
+          eq(message_reactions.emoji, emoji),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      await this.db
+        .delete(message_reactions)
+        .where(eq(message_reactions.id, existing.id));
+      return { reacted: false };
+    }
+
+    await this.db.insert(message_reactions).values({ message_id, user_id, emoji });
+    return { reacted: true };
   }
 
   private async requireChannelAccess(

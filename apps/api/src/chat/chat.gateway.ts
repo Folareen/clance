@@ -86,7 +86,12 @@ export class ChatGateway
   async handleSendMessage(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
-    data: { project_id: string; channel_id: string; content: string },
+    data: {
+      project_id: string;
+      channel_id: string;
+      content: string;
+      parent_message_id?: string;
+    },
   ) {
     try {
       const message = await this.chatService.sendMessage(
@@ -94,15 +99,55 @@ export class ChatGateway
         data.channel_id,
         data.content,
         client.userId,
+        data.parent_message_id,
       );
 
-      this.server
-        .to(`channel:${data.channel_id}`)
-        .emit('new_message', message);
+      if (data.parent_message_id) {
+        this.server
+          .to(`channel:${data.channel_id}`)
+          .emit('new_reply', { ...message, parent_message_id: data.parent_message_id });
+      } else {
+        this.server
+          .to(`channel:${data.channel_id}`)
+          .emit('new_message', message);
+      }
 
       return { status: 'ok', message };
     } catch {
       return { status: 'error', message: 'Failed to send message' };
+    }
+  }
+
+  @SubscribeMessage('toggle_reaction')
+  async handleToggleReaction(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    data: {
+      project_id: string;
+      channel_id: string;
+      message_id: string;
+      emoji: string;
+    },
+  ) {
+    try {
+      const result = await this.chatService.toggleReaction(
+        data.project_id,
+        data.channel_id,
+        data.message_id,
+        data.emoji,
+        client.userId,
+      );
+
+      this.server.to(`channel:${data.channel_id}`).emit('reaction_updated', {
+        message_id: data.message_id,
+        emoji: data.emoji,
+        user_id: client.userId,
+        reacted: result.reacted,
+      });
+
+      return { status: 'ok', ...result };
+    } catch {
+      return { status: 'error', message: 'Failed to react' };
     }
   }
 

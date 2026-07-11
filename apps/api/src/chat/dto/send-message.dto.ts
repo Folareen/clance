@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class SendMessageDto {
   @IsUUID()
@@ -8,4 +8,8 @@ export class SendMessageDto {
   @IsString()
   @IsNotEmpty()
   content!: string;
+
+  @IsUUID()
+  @IsOptional()
+  parent_message_id?: string;
 }

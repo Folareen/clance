@@ -20,7 +20,7 @@ import {
 } from '../common/decorators/current-user.decorator';
 import { ChatService } from './chat.service';
 import { FileService } from '../upload/file.service';
-import { CreateChannelDto, CreateDmDto } from './dto';
+import { CreateChannelDto, CreateDmDto, ReactDto } from './dto';
 
 @Controller('projects/:projectId/channels')
 @UseGuards(JwtAuthGuard)
@@ -68,6 +68,33 @@ export class ChatController {
       channelId,
       user.id,
       cursor,
+    );
+  }
+
+  @Get(':channelId/messages/:messageId/thread')
+  getThread(
+    @Param('projectId') projectId: string,
+    @Param('channelId') channelId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.getThread(projectId, channelId, messageId, user.id);
+  }
+
+  @Post(':channelId/messages/:messageId/reactions')
+  toggleReaction(
+    @Param('projectId') projectId: string,
+    @Param('channelId') channelId: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: ReactDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.toggleReaction(
+      projectId,
+      channelId,
+      messageId,
+      dto.emoji,
+      user.id,
     );
   }
 

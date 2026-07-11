@@ -119,14 +119,24 @@ export interface MessageSender {
   avatar_url: string | null;
 }
 
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
   sender_id: string;
   content: string;
+  parent_message_id: string | null;
+  pinned: boolean;
   created_at: string;
   updated_at: string;
   sender: MessageSender;
+  reply_count: number;
+  reactions: MessageReaction[];
 }
 
 export interface MessagePage {
@@ -571,6 +581,17 @@ export const api = {
       `/api/projects/${projectId}/channels/${channelId}/messages${qs ? `?${qs}` : ""}`
     );
   },
+
+  getThread: (projectId: string, channelId: string, messageId: string) =>
+    request<{ parent: Message; replies: Message[] }>(
+      `/api/projects/${projectId}/channels/${channelId}/messages/${messageId}/thread`
+    ),
+
+  toggleReaction: (projectId: string, channelId: string, messageId: string, emoji: string) =>
+    request<{ reacted: boolean }>(
+      `/api/projects/${projectId}/channels/${channelId}/messages/${messageId}/reactions`,
+      { method: "POST", body: { emoji } }
+    ),
 
   // Files
   uploadTaskFile: async (projectId: string, taskId: string, file: File): Promise<FileRecord> => {
