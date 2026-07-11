@@ -98,6 +98,25 @@ export class ChatController {
     );
   }
 
+  @Post(':channelId/messages/:messageId/pin')
+  togglePin(
+    @Param('projectId') projectId: string,
+    @Param('channelId') channelId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.togglePin(projectId, channelId, messageId, user.id);
+  }
+
+  @Get(':channelId/pinned')
+  getPinnedMessages(
+    @Param('projectId') projectId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.chatService.getPinnedMessages(projectId, channelId, user.id);
+  }
+
   @Post(':channelId/files')
   async uploadFile(
     @Param('projectId') projectId: string,

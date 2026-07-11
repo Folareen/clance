@@ -32,6 +32,7 @@ export interface Member {
   label: string | null;
   status: MemberStatus;
   joined_at: string | null;
+  username: string | null;
 }
 
 export interface ProjectDetail extends Project {
@@ -336,7 +337,10 @@ export type NotificationType =
   | "task_commented"
   | "project_invited"
   | "member_joined"
-  | "dm_received";
+  | "dm_received"
+  | "meeting_created"
+  | "mentioned"
+  | "message_pinned";
 
 export interface Notification {
   id: string;
@@ -592,6 +596,15 @@ export const api = {
       `/api/projects/${projectId}/channels/${channelId}/messages/${messageId}/reactions`,
       { method: "POST", body: { emoji } }
     ),
+
+  togglePin: (projectId: string, channelId: string, messageId: string) =>
+    request<{ pinned: boolean }>(
+      `/api/projects/${projectId}/channels/${channelId}/messages/${messageId}/pin`,
+      { method: "POST" }
+    ),
+
+  getPinnedMessages: (projectId: string, channelId: string) =>
+    request<Message[]>(`/api/projects/${projectId}/channels/${channelId}/pinned`),
 
   // Files
   uploadTaskFile: async (projectId: string, taskId: string, file: File): Promise<FileRecord> => {

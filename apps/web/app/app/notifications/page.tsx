@@ -12,6 +12,9 @@ import {
   UserPlus,
   UserCheck,
   Mail,
+  AtSign,
+  Video,
+  Pin,
 } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { RequireAuth } from "@/components/require-auth";
@@ -28,6 +31,9 @@ const typeConfig: Record<
   project_invited: { icon: Mail, className: "text-accent" },
   member_joined: { icon: UserCheck, className: "text-success" },
   dm_received: { icon: MessageCircle, className: "text-info" },
+  meeting_created: { icon: Video, className: "text-accent" },
+  mentioned: { icon: AtSign, className: "text-accent" },
+  message_pinned: { icon: Pin, className: "text-warning" },
 };
 
 function timeAgo(iso: string) {

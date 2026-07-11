@@ -17,12 +17,14 @@ import {
 } from '../database/schema';
 import { CreateChannelDto, CreateDmDto } from './dto';
 import { NotificationService } from '../notification/notification.service';
+import { ActivityService } from '../activity/activity.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     @Inject(DRIZZLE) private db: DrizzleDB,
     private notifications: NotificationService,
+    private activity: ActivityService,
   ) {}
 
   async getOrCreateGeneralChannel(project_id: string, user_id: string) {
@@ -277,7 +279,7 @@ export class ChatService {
 
       if (mentionedIds.length > 0) {
         this.notifications.createMany(mentionedIds, {
-          type: 'task_commented',
+          type: 'mentioned',
           title: `${senderName} mentioned you`,
           body: content.length > 100 ? content.slice(0, 100) + '…' : content,
           project_id,
@@ -500,6 +502,116 @@ export class ChatService {
 
     await this.db.insert(message_reactions).values({ message_id, user_id, emoji });
     return { reacted: true };
+  }
+
+  async togglePin(
+    project_id: string,
+    channel_id: string,
+    message_id: string,
+    user_id: string,
+  ) {
+    await this.requireActiveMember(project_id, user_id);
+    await this.requireChannelAccess(project_id, channel_id, user_id);
+
+    const [message] = await this.db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.id, message_id), eq(messages.channel_id, channel_id)))
+      .limit(1);
+    if (!message) throw new NotFoundException('Message not found');
+
+    const nextPinned = !message.pinned;
+
+    await this.db
+      .update(messages)
+      .set({ pinned: nextPinned })
+      .where(eq(messages.id, message_id));
+
+    if (nextPinned) {
+      const pinnerName = await this.getUserDisplayName(user_id);
+      const preview =
+        message.content.length > 100
+          ? message.content.slice(0, 100) + '…'
+          : message.content;
+
+      this.activity.log({
+        project_id,
+        actor_id: user_id,
+        type: 'message_pinned',
+        summary: `${pinnerName} pinned a decision`,
+        body: preview,
+        link: `/app/projects/${project_id}/chat`,
+      });
+
+      const channelMembers = channel_id
+        ? await this.db
+            .select({ user_id: channel_members.user_id })
+            .from(channel_members)
+            .where(eq(channel_members.channel_id, channel_id))
+        : [];
+
+      const [ch] = await this.db
+        .select({ type: channels.type, project_id: channels.project_id })
+        .from(channels)
+        .where(eq(channels.id, channel_id))
+        .limit(1);
+
+      const targetIds =
+        ch?.type === 'dm'
+          ? channelMembers.map((m) => m.user_id)
+          : (
+              await this.db
+                .select({ user_id: members.user_id })
+                .from(members)
+                .where(
+                  and(eq(members.project_id, project_id), eq(members.status, 'active')),
+                )
+            )
+              .map((m) => m.user_id)
+              .filter((id): id is string => !!id);
+
+      this.notifications.createMany(targetIds, {
+        type: 'message_pinned',
+        title: `${pinnerName} pinned a decision`,
+        body: preview,
+        project_id,
+        link: `/app/projects/${project_id}/chat`,
+        actor_id: user_id,
+      });
+    }
+
+    return { pinned: nextPinned };
+  }
+
+  async getPinnedMessages(project_id: string, channel_id: string, user_id: string) {
+    await this.requireActiveMember(project_id, user_id);
+    await this.requireChannelAccess(project_id, channel_id, user_id);
+
+    const rows = await this.db
+      .select({
+        message: messages,
+        first_name: users.first_name,
+        last_name: users.last_name,
+        email: users.email,
+        avatar_url: users.avatar_url,
+      })
+      .from(messages)
+      .innerJoin(users, eq(users.id, messages.sender_id))
+      .where(and(eq(messages.channel_id, channel_id), eq(messages.pinned, true)))
+      .orderBy(desc(messages.created_at));
+
+    return this.enrichMessages(rows, user_id);
+  }
+
+  private async getUserDisplayName(user_id: string) {
+    const [user] = await this.db
+      .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
+      .from(users)
+      .where(eq(users.id, user_id))
+      .limit(1);
+    if (!user) return 'Someone';
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ');
+    return name || user.email;
   }
 
   private async requireChannelAccess(

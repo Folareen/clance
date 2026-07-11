@@ -151,6 +151,31 @@ export class ChatGateway
     }
   }
 
+  @SubscribeMessage('toggle_pin')
+  async handleTogglePin(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody()
+    data: { project_id: string; channel_id: string; message_id: string },
+  ) {
+    try {
+      const result = await this.chatService.togglePin(
+        data.project_id,
+        data.channel_id,
+        data.message_id,
+        client.userId,
+      );
+
+      this.server.to(`channel:${data.channel_id}`).emit('pin_updated', {
+        message_id: data.message_id,
+        pinned: result.pinned,
+      });
+
+      return { status: 'ok', ...result };
+    } catch {
+      return { status: 'error', message: 'Failed to pin message' };
+    }
+  }
+
   @SubscribeMessage('typing')
   handleTyping(
     @ConnectedSocket() client: AuthSocket,

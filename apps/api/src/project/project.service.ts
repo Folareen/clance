@@ -94,8 +94,10 @@ export class ProjectService {
         label: members.label,
         status: members.status,
         joined_at: members.joined_at,
+        username: users.username,
       })
       .from(members)
+      .leftJoin(users, eq(users.id, members.user_id))
       .where(eq(members.project_id, project_id));
 
     return { ...project, members: project_members };
