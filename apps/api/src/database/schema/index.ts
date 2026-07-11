@@ -14,3 +14,4 @@ export * from './notifications';
 export * from './activity';
 export * from './meetings';
 export * from './message_reactions';
+export * from './push_subscriptions';

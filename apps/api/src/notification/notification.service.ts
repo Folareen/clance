@@ -3,6 +3,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { notifications, users, projects } from '../database/schema';
 import { EmailService } from '../email/email.service';
+import { PushService } from '../push/push.service';
 
 type NotificationType =
   | 'task_assigned'
@@ -22,6 +23,7 @@ export class NotificationService {
   constructor(
     @Inject(DRIZZLE) private db: DrizzleDB,
     private email: EmailService,
+    private push: PushService,
   ) {}
 
   async create(params: {
@@ -49,6 +51,7 @@ export class NotificationService {
       .returning();
 
     this.sendEmail(params.user_id, params.title, params.body, params.link);
+    this.sendPush(params.user_id, params.title, params.body, params.link);
 
     return notification;
   }
@@ -84,6 +87,7 @@ export class NotificationService {
 
     for (const userId of filtered) {
       this.sendEmail(userId, params.title, params.body, params.link);
+      this.sendPush(userId, params.title, params.body, params.link);
     }
   }
 
@@ -168,6 +172,14 @@ export class NotificationService {
       }
     } catch (err) {
       this.logger.warn(`Failed to send notification email to user ${userId}: ${err}`);
+    }
+  }
+
+  private async sendPush(userId: string, title: string, body?: string, link?: string) {
+    try {
+      await this.push.sendToUser(userId, { title, body, link });
+    } catch (err) {
+      this.logger.warn(`Failed to send push notification to user ${userId}: ${err}`);
     }
   }
 }

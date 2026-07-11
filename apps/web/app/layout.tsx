@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StoreProvider } from "@/components/store-provider";
 import { ToastContainer } from "@/components/toast";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { THEME_KEY } from "@/lib/constants";
 import "./globals.css";
 
@@ -9,6 +10,15 @@ export const metadata: Metadata = {
   title: "Clance",
   description:
     "One project-shaped home for contract, freelance, and lean teams.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon-192.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#7c3aed",
 };
 
 export default function RootLayout({
@@ -28,6 +38,7 @@ export default function RootLayout({
           <ThemeProvider>
             {children}
             <ToastContainer />
+            <ServiceWorkerRegistrar />
           </ThemeProvider>
         </StoreProvider>
       </body>

@@ -12,7 +12,11 @@ export const meetings = pgTable('meetings', {
     onDelete: 'set null',
   }),
   title: varchar('title', { length: 255 }).notNull(),
-  join_url: varchar('join_url', { length: 500 }).notNull(),
+  join_url: varchar('join_url', { length: 500 }),
+  notes: varchar('notes', { length: 5000 }),
+  happened_at: timestamp('happened_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   created_by: uuid('created_by')
     .notNull()
     .references(() => users.id),

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Video, Plus, ExternalLink, Loader2, CheckSquare, X } from "lucide-react";
+import { Video, Plus, ExternalLink, Loader2, CheckSquare, X, Pencil, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
 import { PagePlaceholder } from "@/components/page-placeholder";
 import { toast } from "@/components/toast";
-import { api, ApiError, type Meeting, type Member } from "@/lib/api";
+import { ConfirmModal } from "@/components/confirm-modal";
+import { api, ApiError, type Meeting, type Task } from "@/lib/api";
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -21,11 +22,20 @@ function creatorName(creator: Meeting["creator"]) {
   return name || creator.email || "Someone";
 }
 
+function toLocalInputValue(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function ProjectMeetings() {
   const { project } = useProject();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Meeting | null>(null);
+  const [deleting, setDeleting] = useState<Meeting | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   const projectId = project?.id ?? "";
 
@@ -42,13 +52,26 @@ export default function ProjectMeetings() {
     loadMeetings();
   }, [loadMeetings]);
 
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      await api.deleteMeeting(projectId, deleting.id);
+      setDeleting(null);
+      loadMeetings();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to delete meeting");
+    }
+    setDeletingBusy(false);
+  };
+
   return (
     <div className="p-6 sm:p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-content">Meetings</h1>
           <p className="text-content-secondary mt-1">
-            Video calls, logged and tied to your project
+            Keep a log of your project&apos;s meetings, notes, and links
           </p>
         </div>
         <button
@@ -56,7 +79,7 @@ export default function ProjectMeetings() {
           className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
-          New Meeting
+          Log Meeting
         </button>
       </div>
 
@@ -68,38 +91,33 @@ export default function ProjectMeetings() {
         <PagePlaceholder
           icon={Video}
           title="No meetings yet"
-          description="Start a meeting and it'll show up here, tied to the activity log."
+          description="Log a meeting to keep a record of it here, tied to the activity log."
           action={
             <button
               onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
             >
               <Plus className="w-4 h-4" />
-              Start a meeting
+              Log a meeting
             </button>
           }
         />
       ) : (
         <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
           {meetings.map((m) => (
-            <a
+            <div
               key={m.id}
-              href={m.join_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-hover/50 transition-colors group"
+              className="flex items-start gap-4 px-5 py-4 hover:bg-surface-hover/50 transition-colors group"
             >
               <div className="w-10 h-10 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
                 <Video className="w-5 h-5 text-accent" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-content group-hover:text-accent transition-colors truncate">
-                  {m.title}
-                </p>
+                <p className="text-sm font-medium text-content truncate">{m.title}</p>
                 <p className="text-xs text-content-muted mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  <span>Started by {creatorName(m.creator)}</span>
+                  <span>Logged by {creatorName(m.creator)}</span>
                   <span>&middot;</span>
-                  <span>{formatDateTime(m.created_at)}</span>
+                  <span>{formatDateTime(m.happened_at)}</span>
                   {m.task_title && (
                     <>
                       <span>&middot;</span>
@@ -109,54 +127,127 @@ export default function ProjectMeetings() {
                     </>
                   )}
                 </p>
+                {m.notes && (
+                  <p className="text-sm text-content-secondary mt-2 whitespace-pre-wrap">{m.notes}</p>
+                )}
+                {m.join_url && (
+                  <a
+                    href={m.join_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline mt-2"
+                  >
+                    Join link
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
-              <span className="flex items-center gap-1.5 text-xs font-medium text-accent shrink-0">
-                Join
-                <ExternalLink className="w-3.5 h-3.5" />
-              </span>
-            </a>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button
+                  onClick={() => setEditing(m)}
+                  title="Edit"
+                  className="p-1.5 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setDeleting(m)}
+                  title="Delete"
+                  className="p-1.5 rounded-lg text-content-muted hover:text-danger hover:bg-danger-soft transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
       {showCreate && (
-        <CreateMeetingModal
+        <MeetingModal
           projectId={projectId}
-          members={project?.members.filter((m) => m.status === "active") ?? []}
           onClose={() => setShowCreate(false)}
-          onCreated={() => {
+          onSaved={() => {
             setShowCreate(false);
             loadMeetings();
           }}
+        />
+      )}
+
+      {editing && (
+        <MeetingModal
+          projectId={projectId}
+          meeting={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            loadMeetings();
+          }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmModal
+          title="Delete meeting"
+          message={`Delete "${deleting.title}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          loading={deletingBusy}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleting(null)}
         />
       )}
     </div>
   );
 }
 
-function CreateMeetingModal({
+function MeetingModal({
   projectId,
+  meeting,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   projectId: string;
-  members: Member[];
+  meeting?: Meeting;
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [creating, setCreating] = useState(false);
+  const isEditing = !!meeting;
+  const [title, setTitle] = useState(meeting?.title ?? "");
+  const [happenedAt, setHappenedAt] = useState(
+    meeting ? toLocalInputValue(meeting.happened_at) : toLocalInputValue(new Date().toISOString()),
+  );
+  const [joinUrl, setJoinUrl] = useState(meeting?.join_url ?? "");
+  const [notes, setNotes] = useState(meeting?.notes ?? "");
+  const [taskId, setTaskId] = useState(meeting?.task_id ?? "");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [saving, setSaving] = useState(false);
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    api
+      .listTasks(projectId)
+      .then(setTasks)
+      .catch(() => {});
+  }, [projectId]);
+
+  const handleSave = async () => {
     if (!title.trim()) return;
-    setCreating(true);
+    setSaving(true);
     try {
-      const meeting = await api.createMeeting(projectId, { title: title.trim() });
-      onCreated();
-      window.open(meeting.join_url, "_blank", "noopener,noreferrer");
+      const payload = {
+        title: title.trim(),
+        happened_at: new Date(happenedAt).toISOString(),
+        join_url: joinUrl.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
+      if (isEditing) {
+        await api.updateMeeting(projectId, meeting.id, { ...payload, task_id: taskId || null });
+      } else {
+        await api.createMeeting(projectId, { ...payload, task_id: taskId || undefined });
+      }
+      onSaved();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to start meeting");
-      setCreating(false);
+      toast(err instanceof ApiError ? err.message : "Failed to save meeting");
+      setSaving(false);
     }
   };
 
@@ -170,7 +261,9 @@ function CreateMeetingModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-content">New meeting</h3>
+          <h3 className="text-base font-semibold text-content">
+            {isEditing ? "Edit meeting" : "Log a meeting"}
+          </h3>
           <button
             onClick={onClose}
             className="text-content-muted hover:text-content transition-colors"
@@ -178,33 +271,80 @@ function CreateMeetingModal({
             <X className="w-4 h-4" />
           </button>
         </div>
+
         <label className="block text-sm font-medium text-content mb-1.5">
-          What&apos;s it about?
+          What was it about?
         </label>
         <input
           autoFocus
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           placeholder="Weekly sync"
           className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
         />
+
+        <label className="block text-sm font-medium text-content mb-1.5">When</label>
+        <input
+          type="datetime-local"
+          value={happenedAt}
+          onChange={(e) => setHappenedAt(e.target.value)}
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+        />
+
+        <label className="block text-sm font-medium text-content mb-1.5">
+          Related task <span className="text-content-muted font-normal">(optional)</span>
+        </label>
+        <select
+          value={taskId}
+          onChange={(e) => setTaskId(e.target.value)}
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+        >
+          <option value="">No task</option>
+          {tasks.map((t) => (
+            <option key={t.id} value={t.id}>
+              #{t.task_number} {t.title}
+            </option>
+          ))}
+        </select>
+
+        <label className="block text-sm font-medium text-content mb-1.5">
+          Meeting link <span className="text-content-muted font-normal">(optional)</span>
+        </label>
+        <input
+          type="url"
+          value={joinUrl}
+          onChange={(e) => setJoinUrl(e.target.value)}
+          placeholder="https://meet.google.com/xxx-yyyy-zzz"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+        />
+
+        <label className="block text-sm font-medium text-content mb-1.5">
+          Notes <span className="text-content-muted font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="What was discussed, decisions made..."
+          rows={3}
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4 resize-none"
+        />
+
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            disabled={creating}
+            disabled={saving}
             className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary hover:bg-surface-hover transition-colors disabled:opacity-60"
           >
             Cancel
           </button>
           <button
-            onClick={handleCreate}
-            disabled={creating || !title.trim()}
+            onClick={handleSave}
+            disabled={saving || !title.trim()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-accent-contrast text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-            Start &amp; join
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isEditing ? "Save" : "Log meeting"}
           </button>
         </div>
       </div>

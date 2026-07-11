@@ -197,8 +197,8 @@ const GRID_FEATURES = [
   },
   {
     icon: Video,
-    title: "Meetings, one click away",
-    body: "Start a call from a task or chat and get a real, joinable link instantly — logged to the activity feed, tied back to the work it's about.",
+    title: "Meetings, logged where the work happens",
+    body: "Log a meeting with your own call link, notes, and time — tied back to a task, searchable in the activity feed.",
   },
   {
     icon: Bell,

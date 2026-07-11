@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/components/auth-provider";
 import { TopBar } from "@/components/top-bar";
 import { RequireAuth } from "@/components/require-auth";
+import { toast } from "@/components/toast";
 import { fullName, initials } from "@/lib/display";
 import { cn } from "@/lib/utils";
+import { isPushSupported, getPushSubscription, enablePush, disablePush } from "@/lib/push";
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
@@ -34,11 +36,43 @@ function SettingsContent() {
 
   const [notifications, setNotifications] = useState({
     email: true,
-    push: true,
     mentions: true,
     taskUpdates: true,
     approvals: false,
   });
+
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    setPushSupported(isPushSupported());
+    getPushSubscription().then((sub) => setPushEnabled(!!sub));
+  }, []);
+
+  const togglePush = useCallback(async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await disablePush();
+        setPushEnabled(false);
+      } else {
+        const granted = await enablePush();
+        if (!granted) {
+          toast(
+            Notification.permission === "denied"
+              ? "Notifications are blocked in your browser settings"
+              : "Couldn't enable push notifications"
+          );
+        }
+        setPushEnabled(granted);
+      }
+    } catch {
+      toast("Couldn't update push notifications");
+    }
+    setPushBusy(false);
+  }, [pushEnabled, pushBusy]);
 
   const toggle = (key: keyof typeof notifications) =>
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -85,15 +119,36 @@ function SettingsContent() {
           </div>
         </section>
 
-        {/* Notifications (local preference demo) */}
+        {/* Notifications */}
         <section className="mb-10">
           <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
             Notifications
           </h2>
           <div className="bg-surface border border-stroke rounded-xl divide-y divide-stroke">
+            <div className="flex items-center justify-between gap-4 px-6 py-4">
+              <div>
+                <p className="text-sm font-medium text-content">Email notifications</p>
+                <p className="text-sm text-content-muted mt-0.5">
+                  Receive email updates for important events
+                </p>
+              </div>
+              <Toggle enabled={notifications.email} onToggle={() => toggle("email")} />
+            </div>
+            <div className="flex items-center justify-between gap-4 px-6 py-4">
+              <div>
+                <p className="text-sm font-medium text-content">Push notifications</p>
+                <p className="text-sm text-content-muted mt-0.5">
+                  {pushSupported
+                    ? "Get notified in this browser, even when Clance isn't open"
+                    : "Not supported in this browser"}
+                </p>
+              </div>
+              <Toggle
+                enabled={pushEnabled}
+                onToggle={pushSupported && !pushBusy ? togglePush : () => {}}
+              />
+            </div>
             {[
-              { key: "email" as const, title: "Email notifications", description: "Receive email updates for important events" },
-              { key: "push" as const, title: "Push notifications", description: "Get notified in your browser or mobile device" },
               { key: "mentions" as const, title: "@Mentions", description: "When someone mentions you in a message or comment" },
               { key: "taskUpdates" as const, title: "Task updates", description: "When tasks you're assigned to or watching are updated" },
               { key: "approvals" as const, title: "Approval requests", description: "When a team member submits work for your review" },

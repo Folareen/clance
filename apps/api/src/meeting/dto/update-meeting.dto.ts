@@ -1,13 +1,14 @@
-import { IsString, IsOptional, IsUUID, IsUrl, IsISO8601, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsISO8601, IsUUID, MaxLength } from 'class-validator';
 
-export class CreateMeetingDto {
+export class UpdateMeetingDto {
   @IsString()
   @MaxLength(255)
-  title!: string;
+  @IsOptional()
+  title?: string;
 
   @IsUUID()
   @IsOptional()
-  task_id?: string;
+  task_id?: string | null;
 
   @IsUrl({ require_protocol: true })
   @IsOptional()

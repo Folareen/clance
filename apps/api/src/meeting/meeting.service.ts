@@ -1,21 +1,10 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { randomBytes } from 'crypto';
 import { eq, and, desc } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { meetings, members, users, tasks } from '../database/schema';
-import { CreateMeetingDto } from './dto';
+import { CreateMeetingDto, UpdateMeetingDto } from './dto';
 import { NotificationService } from '../notification/notification.service';
 import { ActivityService } from '../activity/activity.service';
-
-const CODE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
-
-function randomMeetCode() {
-  const segment = (len: number) =>
-    Array.from(randomBytes(len))
-      .map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length])
-      .join('');
-  return `${segment(3)}-${segment(4)}-${segment(3)}`;
-}
 
 @Injectable()
 export class MeetingService {
@@ -37,15 +26,15 @@ export class MeetingService {
       if (!task) throw new NotFoundException('Task not found');
     }
 
-    const join_url = `https://meet.google.com/${randomMeetCode()}`;
-
     const [meeting] = await this.db
       .insert(meetings)
       .values({
         project_id,
         task_id: dto.task_id,
         title: dto.title,
-        join_url,
+        join_url: dto.join_url,
+        notes: dto.notes,
+        happened_at: dto.happened_at ? new Date(dto.happened_at) : undefined,
         created_by: user_id,
       })
       .returning();
@@ -60,7 +49,7 @@ export class MeetingService {
       projectMembers.map((m) => m.user_id).filter((id): id is string => !!id),
       {
         type: 'meeting_created',
-        title: `${creatorName} started a meeting: "${dto.title}"`,
+        title: `${creatorName} logged a meeting: "${dto.title}"`,
         project_id,
         link: `/app/projects/${project_id}/meetings`,
         actor_id: user_id,
@@ -71,7 +60,7 @@ export class MeetingService {
       project_id,
       actor_id: user_id,
       type: 'meeting_created',
-      summary: `started a meeting: "${dto.title}"`,
+      summary: `logged a meeting: "${dto.title}"`,
       link: `/app/projects/${project_id}/meetings`,
     });
 
@@ -88,6 +77,66 @@ export class MeetingService {
       .orderBy(desc(meetings.created_at));
 
     return Promise.all(rows.map((m) => this.enrich(m)));
+  }
+
+  async update(project_id: string, meeting_id: string, dto: UpdateMeetingDto, user_id: string) {
+    await this.requireActiveMember(project_id, user_id);
+
+    const [existing] = await this.db
+      .select()
+      .from(meetings)
+      .where(and(eq(meetings.id, meeting_id), eq(meetings.project_id, project_id)))
+      .limit(1);
+
+    if (!existing) throw new NotFoundException('Meeting not found');
+
+    if (dto.task_id) {
+      const [task] = await this.db
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(and(eq(tasks.id, dto.task_id), eq(tasks.project_id, project_id)))
+        .limit(1);
+      if (!task) throw new NotFoundException('Task not found');
+    }
+
+    if (
+      dto.title === undefined &&
+      dto.task_id === undefined &&
+      dto.join_url === undefined &&
+      dto.notes === undefined &&
+      dto.happened_at === undefined
+    ) {
+      return this.enrich(existing);
+    }
+
+    const set: Record<string, any> = {};
+    if (dto.title !== undefined) set.title = dto.title;
+    if (dto.task_id !== undefined) set.task_id = dto.task_id;
+    if (dto.join_url !== undefined) set.join_url = dto.join_url;
+    if (dto.notes !== undefined) set.notes = dto.notes;
+    if (dto.happened_at !== undefined) set.happened_at = new Date(dto.happened_at);
+
+    const [updated] = await this.db
+      .update(meetings)
+      .set(set)
+      .where(eq(meetings.id, meeting_id))
+      .returning();
+
+    return this.enrich(updated);
+  }
+
+  async remove(project_id: string, meeting_id: string, user_id: string) {
+    await this.requireActiveMember(project_id, user_id);
+
+    const [meeting] = await this.db
+      .select()
+      .from(meetings)
+      .where(and(eq(meetings.id, meeting_id), eq(meetings.project_id, project_id)))
+      .limit(1);
+
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    await this.db.delete(meetings).where(eq(meetings.id, meeting_id));
   }
 
   private async enrich(meeting: typeof meetings.$inferSelect) {

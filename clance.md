@@ -39,10 +39,11 @@ Scoped per-project — same person can be manager on one project and worker on a
 
 **Status flow:**
 ```
-unassigned → pending/ongoing → submitted → approved
+backlog → in_progress → submitted → approved
 ```
+Status is independent of assignment — a task can sit in `backlog` whether or not anyone's assigned to it yet.
 - Worker → `submitted` when done.
-- Any manager → `approved` (done), or rejects back to `pending/ongoing` with a comment.
+- Any manager → `approved` (done), or rejects back to an earlier status with a comment.
 - Parent task can only become `approved` once all its subtasks are `approved`.
 
 **Comments:** every task has its own thread, same engine as chat.
@@ -89,7 +90,9 @@ Basic text search across tasks, chat, and the All Files view — scoped to what 
 
 ## 8. Meetings
 
-Create from chat or a task → Clance calls Zoom/Meet API → meeting is embedded in-app, not just linked. Logged in the activity log, optionally tied to a task.
+Manual log, not an embedded call. A member logs a meeting (title, date/time, own paste-in link for whatever tool they used, notes), optionally tied to a task via a picker in the create/edit modal. Logged in the activity log.
+
+Meetings can only be logged from the dedicated Meetings page — no shortcut from a chat message or a task's own panel (deliberately out of scope for now).
 
 ---
 
@@ -119,7 +122,7 @@ Same project, different glance view depending on role.
 
 ## 11. Notifications
 
-In-app + push + email. PWA support so push works without a native app.
+In-app + push + email. PWA support (manifest + service worker) so push works without a native app.
 
 Triggers: @mentions, assignment, submission, approval/rejection, pinned decisions, meeting creation.
 

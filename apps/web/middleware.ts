@@ -12,7 +12,10 @@ export function middleware(req: NextRequest) {
     pathname === "/" ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
-    pathname.startsWith("/favicon")
+    pathname.startsWith("/favicon") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/icons/")
   ) {
     return NextResponse.next();
   }

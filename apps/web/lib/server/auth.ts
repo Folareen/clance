@@ -59,6 +59,11 @@ async function readBody(res: Response): Promise<unknown> {
   return text ? JSON.parse(text) : null;
 }
 
+function jsonResponse(body: unknown, status: number) {
+  if (status === 204 || status === 304) return new NextResponse(null, { status });
+  return NextResponse.json(body, { status });
+}
+
 let refreshInFlight: Promise<{ access: string; refresh: string } | null> | null =
   null;
 
@@ -107,7 +112,7 @@ export async function proxyRawToApi(
 
   if (!auth) {
     const res = await upstream();
-    return NextResponse.json(await readBody(res), { status: res.status });
+    return jsonResponse(await readBody(res), res.status);
   }
 
   let token = await getAccessToken();
@@ -125,7 +130,7 @@ export async function proxyRawToApi(
     return NextResponse.json({ message: "Session expired" }, { status: 401 });
   }
 
-  return NextResponse.json(await readBody(res), { status: res.status });
+  return jsonResponse(await readBody(res), res.status);
 }
 
 export async function proxyToApi(
@@ -147,7 +152,7 @@ export async function proxyToApi(
 
   if (!auth) {
     const res = await upstream();
-    return NextResponse.json(await readBody(res), { status: res.status });
+    return jsonResponse(await readBody(res), res.status);
   }
 
   let token = await getAccessToken();
@@ -165,12 +170,12 @@ export async function proxyToApi(
       const newToken = await getAccessToken();
       if (newToken) {
         res = await upstream(newToken);
-        return NextResponse.json(await readBody(res), { status: res.status });
+        return jsonResponse(await readBody(res), res.status);
       }
     }
     await clearAuthCookies();
     return NextResponse.json({ message: "Session expired" }, { status: 401 });
   }
 
-  return NextResponse.json(await readBody(res), { status: res.status });
+  return jsonResponse(await readBody(res), res.status);
 }

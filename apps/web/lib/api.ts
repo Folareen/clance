@@ -223,7 +223,9 @@ export interface Meeting {
   project_id: string;
   task_id: string | null;
   title: string;
-  join_url: string;
+  join_url: string | null;
+  notes: string | null;
+  happened_at: string;
   created_by: string;
   created_at: string;
   creator: MeetingCreator;
@@ -675,11 +677,42 @@ export const api = {
   listMeetings: (projectId: string) =>
     request<Meeting[]>(`/api/projects/${projectId}/meetings`),
 
-  createMeeting: (projectId: string, b: { title: string; task_id?: string }) =>
+  createMeeting: (
+    projectId: string,
+    b: { title: string; task_id?: string; join_url?: string; notes?: string; happened_at?: string },
+  ) =>
     request<Meeting>(`/api/projects/${projectId}/meetings`, {
       method: "POST",
       body: b,
     }),
+
+  updateMeeting: (
+    projectId: string,
+    meetingId: string,
+    b: {
+      title?: string;
+      task_id?: string | null;
+      join_url?: string;
+      notes?: string;
+      happened_at?: string;
+    },
+  ) =>
+    request<Meeting>(`/api/projects/${projectId}/meetings/${meetingId}`, {
+      method: "PATCH",
+      body: b,
+    }),
+
+  deleteMeeting: (projectId: string, meetingId: string) =>
+    request<void>(`/api/projects/${projectId}/meetings/${meetingId}`, {
+      method: "DELETE",
+    }),
+
+  // Push notifications
+  subscribePush: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<void>("/api/push/subscribe", { method: "POST", body: sub }),
+
+  unsubscribePush: (endpoint: string) =>
+    request<void>("/api/push/unsubscribe", { method: "DELETE", body: { endpoint } }),
 
   // Activity
   listActivity: (projectId: string) =>
