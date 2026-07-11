@@ -32,4 +32,9 @@ export class UpdateTaskDto {
   @IsUUID()
   @IsOptional()
   parent_id?: string | null;
+
+  @IsString()
+  @MaxLength(2000)
+  @IsOptional()
+  comment?: string;
 }

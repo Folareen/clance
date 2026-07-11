@@ -4,9 +4,10 @@ import { ProjectService } from './project.service';
 import { EmailModule } from '../email/email.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
-  imports: [EmailModule, AuthModule, NotificationModule],
+  imports: [EmailModule, AuthModule, NotificationModule, ActivityModule],
   controllers: [ProjectController],
   providers: [ProjectService],
   exports: [ProjectService],

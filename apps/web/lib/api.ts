@@ -160,6 +160,11 @@ export interface FileRecord {
   uploader: FileUploader;
 }
 
+export interface PersonalFileRecord extends FileRecord {
+  project_name: string | null;
+  source_label: string;
+}
+
 export interface ProjectRecentTask {
   id: string;
   title: string;
@@ -449,6 +454,7 @@ export const api = {
     priority?: TaskPriority;
     due_date?: string | null;
     parent_id?: string | null;
+    comment?: string;
   }) =>
     request<Task>(`/api/projects/${projectId}/tasks/${taskId}`, { method: "PATCH", body: b }),
 
@@ -552,6 +558,8 @@ export const api = {
 
   listProjectFiles: (projectId: string) =>
     request<FileRecord[]>(`/api/projects/${projectId}/files`),
+
+  listMyFiles: () => request<PersonalFileRecord[]>("/api/files"),
 
   // Dashboard
   getDashboardStats: () =>

@@ -6,9 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
-import { projects, members, users } from '../database/schema';
+import { projects, members, users, tasks, task_assignees } from '../database/schema';
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -20,6 +20,7 @@ import {
   AcceptInviteWithSignupDto,
 } from './dto';
 import { NotificationService } from '../notification/notification.service';
+import { ActivityService } from '../activity/activity.service';
 
 @Injectable()
 export class ProjectService {
@@ -28,6 +29,7 @@ export class ProjectService {
     private email: EmailService,
     private auth: AuthService,
     private notificationService: NotificationService,
+    private activity: ActivityService,
   ) {}
 
   async create(dto: CreateProjectDto, user: AuthUser) {
@@ -108,6 +110,13 @@ export class ProjectService {
       .where(eq(projects.id, project_id))
       .returning();
 
+    this.activity.log({
+      project_id,
+      actor_id: user_id,
+      type: 'project_updated',
+      summary: 'updated the project details',
+    });
+
     return updated;
   }
 
@@ -175,6 +184,13 @@ export class ProjectService {
         actor_id: user.id,
       });
     }
+
+    this.activity.log({
+      project_id,
+      actor_id: user.id,
+      type: 'member_invited',
+      summary: `invited ${dto.email} as ${dto.role}`,
+    });
   }
 
   async acceptInvite(token: string, user: AuthUser) {
@@ -233,6 +249,13 @@ export class ProjectService {
         actor_id: user.id,
       },
     );
+
+    this.activity.log({
+      project_id: member.project_id,
+      actor_id: user.id,
+      type: 'member_joined',
+      summary: `${joinerName} joined the project`,
+    });
   }
 
   async acceptInviteWithSignup(dto: AcceptInviteWithSignupDto) {
@@ -301,7 +324,15 @@ export class ProjectService {
       }
     }
 
+    await this.unassignSoleTasksFor(project_id, member.id);
     await this.db.delete(members).where(eq(members.id, member.id));
+
+    this.activity.log({
+      project_id,
+      actor_id: user_id,
+      type: 'member_removed',
+      summary: `${member.email} left the project`,
+    });
   }
 
   async removeMember(project_id: string, member_id: string, user_id: string) {
@@ -324,7 +355,53 @@ export class ProjectService {
       throw new ForbiddenException('Cannot remove yourself');
     }
 
+    await this.unassignSoleTasksFor(project_id, member_id);
     await this.db.delete(members).where(eq(members.id, member_id));
+
+    this.activity.log({
+      project_id,
+      actor_id: user_id,
+      type: 'member_removed',
+      summary: `removed ${member.email} from the project`,
+    });
+  }
+
+  /** Resets tasks to `backlog` if the given member is their only assignee, before that member's rows cascade-delete. */
+  private async unassignSoleTasksFor(project_id: string, member_id: string) {
+    const assignedTasks = await this.db
+      .select({ task_id: task_assignees.task_id })
+      .from(task_assignees)
+      .innerJoin(tasks, eq(tasks.id, task_assignees.task_id))
+      .where(
+        and(
+          eq(tasks.project_id, project_id),
+          eq(task_assignees.member_id, member_id),
+        ),
+      );
+
+    if (assignedTasks.length === 0) return;
+    const taskIds = assignedTasks.map((t) => t.task_id);
+
+    const otherAssigneeCounts = await this.db
+      .select({
+        task_id: task_assignees.task_id,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(task_assignees)
+      .where(sql`${task_assignees.task_id} IN ${taskIds}`)
+      .groupBy(task_assignees.task_id);
+
+    const soleAssignedTaskIds = taskIds.filter((id) => {
+      const row = otherAssigneeCounts.find((c) => c.task_id === id);
+      return (row?.count ?? 0) <= 1;
+    });
+
+    if (soleAssignedTaskIds.length === 0) return;
+
+    await this.db
+      .update(tasks)
+      .set({ status: 'backlog', updated_at: new Date() })
+      .where(sql`${tasks.id} IN ${soleAssignedTaskIds}`);
   }
 
   async updateMember(project_id: string, member_id: string, dto: UpdateMemberDto, user_id: string) {
@@ -366,6 +443,15 @@ export class ProjectService {
       .update(members)
       .set(dto)
       .where(eq(members.id, member_id));
+
+    if (dto.role && dto.role !== member.role) {
+      this.activity.log({
+        project_id,
+        actor_id: user_id,
+        type: 'member_role_changed',
+        summary: `changed ${member.email}'s role to ${dto.role}`,
+      });
+    }
   }
 
   private async requireActiveMember(project_id: string, user_id: string) {

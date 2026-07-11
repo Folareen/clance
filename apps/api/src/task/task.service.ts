@@ -15,12 +15,16 @@ import {
 } from '../database/schema';
 import { CreateTaskDto, UpdateTaskDto, AssignTaskDto } from './dto';
 import { NotificationService } from '../notification/notification.service';
+import { ActivityService } from '../activity/activity.service';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class TaskService {
   constructor(
     @Inject(DRIZZLE) private db: DrizzleDB,
     private notifications: NotificationService,
+    private activity: ActivityService,
+    private chatService: ChatService,
   ) {}
 
   async create(project_id: string, dto: CreateTaskDto, user_id: string) {
@@ -47,6 +51,14 @@ export class TaskService {
         created_by: user_id,
       })
       .returning();
+
+    this.activity.log({
+      project_id,
+      actor_id: user_id,
+      type: 'task_created',
+      summary: `created task #${task.task_number} "${task.title}"`,
+      link: `/app/projects/${project_id}/tasks`,
+    });
 
     if (dto.assignee_ids?.length) {
       await this.db.insert(task_assignees).values(
@@ -205,6 +217,7 @@ export class TaskService {
         dto.status,
         project_id,
         user_id,
+        dto.comment,
       );
       set.status = dto.status;
     }
@@ -216,6 +229,19 @@ export class TaskService {
       .returning();
 
     if (dto.status !== undefined && dto.status !== existing.status) {
+      const isRejection =
+        (existing.status === 'submitted' || existing.status === 'approved') &&
+        dto.status !== 'approved';
+
+      if (isRejection && dto.comment) {
+        await this.chatService.sendComment(
+          project_id,
+          task_id,
+          dto.comment,
+          user_id,
+        );
+      }
+
       const assigneeRows = await this.db
         .select({ user_id: members.user_id })
         .from(task_assignees)
@@ -234,6 +260,15 @@ export class TaskService {
         project_id,
         link: `/app/projects/${project_id}/tasks`,
         actor_id: user_id,
+      });
+
+      this.activity.log({
+        project_id,
+        actor_id: user_id,
+        type: 'task_status_changed',
+        summary: `moved #${existing.task_number} "${existing.title}" to ${label}`,
+        body: isRejection && dto.comment ? dto.comment : undefined,
+        link: `/app/projects/${project_id}/tasks`,
       });
     }
 
@@ -314,7 +349,29 @@ export class TaskService {
     newStatus: string,
     project_id: string,
     user_id: string,
+    comment?: string,
   ) {
+    if (newStatus === 'submitted') {
+      const assigneeRows = await this.db
+        .select({ member_id: task_assignees.member_id })
+        .from(task_assignees)
+        .innerJoin(members, eq(members.id, task_assignees.member_id))
+        .where(
+          and(
+            eq(task_assignees.task_id, task.id),
+            eq(members.user_id, user_id),
+          ),
+        )
+        .limit(1);
+
+      const isCreator = task.created_by === user_id;
+      if (assigneeRows.length === 0 && !isCreator) {
+        throw new ForbiddenException(
+          'Only an assignee can submit this task',
+        );
+      }
+    }
+
     if (newStatus === 'approved') {
       await this.requireManager(project_id, user_id);
 
@@ -336,8 +393,17 @@ export class TaskService {
       }
     }
 
-    if (task.status === 'approved' && newStatus !== 'approved') {
+    const isRejection =
+      (task.status === 'submitted' || task.status === 'approved') &&
+      newStatus !== 'approved';
+
+    if (isRejection) {
       await this.requireManager(project_id, user_id);
+      if (!comment?.trim()) {
+        throw new BadRequestException(
+          'A comment is required when sending a task back',
+        );
+      }
     }
   }
 

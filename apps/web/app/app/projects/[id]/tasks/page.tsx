@@ -635,6 +635,12 @@ function TaskDetailPanel({
   const [commentInput, setCommentInput] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const [pendingRejectStatus, setPendingRejectStatus] = useState<TaskStatus | null>(null);
+  const [rejectComment, setRejectComment] = useState("");
+
+  const { user } = useAuth();
+  const isAssignee = task.assignees.some((a) => a.user_id === user?.id);
+  const canSubmit = isAssignee || task.created_by === user?.id;
 
   const loadFiles = useCallback(async () => {
     try {
@@ -678,9 +684,35 @@ function TaskDetailPanel({
   };
 
   const handleStatusChange = async (status: TaskStatus) => {
+    const isRejection =
+      (task.status === "submitted" || task.status === "approved") &&
+      status !== "approved";
+
+    if (isRejection) {
+      setPendingRejectStatus(status);
+      return;
+    }
+
     setSavingStatus(true);
     try {
       await api.updateTask(projectId, task.id, { status });
+      onUpdated();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to update status");
+    }
+    setSavingStatus(false);
+  };
+
+  const confirmReject = async () => {
+    if (!pendingRejectStatus || !rejectComment.trim()) return;
+    setSavingStatus(true);
+    try {
+      await api.updateTask(projectId, task.id, {
+        status: pendingRejectStatus,
+        comment: rejectComment.trim(),
+      });
+      setPendingRejectStatus(null);
+      setRejectComment("");
       onUpdated();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to update status");
@@ -854,7 +886,9 @@ function TaskDetailPanel({
                 >
                   <option value="backlog">Backlog</option>
                   <option value="in_progress">In Progress</option>
-                  <option value="submitted">Submitted</option>
+                  <option value="submitted" disabled={!canSubmit}>
+                    Submitted{!canSubmit ? " (assignees only)" : ""}
+                  </option>
                   <option value="approved">Approved</option>
                 </select>
                 {savingStatus && (
@@ -1093,6 +1127,55 @@ function TaskDetailPanel({
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
         />
+      )}
+
+      {pendingRejectStatus && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => {
+            setPendingRejectStatus(null);
+            setRejectComment("");
+          }}
+        >
+          <div
+            className="w-full max-w-sm bg-surface border border-stroke rounded-2xl shadow-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-content mb-1">
+              Send back to {pendingRejectStatus.replace("_", " ")}
+            </h3>
+            <p className="text-sm text-content-secondary mb-3">
+              Let them know what needs to change.
+            </p>
+            <textarea
+              autoFocus
+              value={rejectComment}
+              onChange={(e) => setRejectComment(e.target.value)}
+              placeholder="What needs revision..."
+              rows={3}
+              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setPendingRejectStatus(null);
+                  setRejectComment("");
+                }}
+                disabled={savingStatus}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary hover:bg-surface-hover transition-colors disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReject}
+                disabled={savingStatus || !rejectComment.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-accent text-accent-contrast hover:bg-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {savingStatus ? "Sending..." : "Send back"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

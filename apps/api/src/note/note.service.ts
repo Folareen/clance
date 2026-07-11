@@ -8,10 +8,14 @@ import { eq, and, desc } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { notes, members, users } from '../database/schema';
 import { CreateNoteDto, UpdateNoteDto } from './dto';
+import { ActivityService } from '../activity/activity.service';
 
 @Injectable()
 export class NoteService {
-  constructor(@Inject(DRIZZLE) private db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE) private db: DrizzleDB,
+    private activity: ActivityService,
+  ) {}
 
   async create(project_id: string, dto: CreateNoteDto, user_id: string) {
     await this.requireActiveMember(project_id, user_id);
@@ -110,6 +114,16 @@ export class NoteService {
       .set(set)
       .where(eq(notes.id, note_id))
       .returning();
+
+    if (dto.pinned !== undefined && dto.pinned !== existing.pinned) {
+      this.activity.log({
+        project_id,
+        actor_id: user_id,
+        type: dto.pinned ? 'note_pinned' : 'note_unpinned',
+        summary: `${dto.pinned ? 'pinned' : 'unpinned'} note "${updated.title}"`,
+        link: `/app/projects/${project_id}/notes`,
+      });
+    }
 
     return this.enrichNote(updated);
   }

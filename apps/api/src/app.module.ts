@@ -13,6 +13,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { SearchModule } from './search/search.module';
 import { NotificationModule } from './notification/notification.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationModule } from './notification/notification.module';
     AssistantModule,
     SearchModule,
     NotificationModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

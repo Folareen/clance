@@ -11,3 +11,4 @@ export * from './messages';
 export * from './files';
 export * from './email_codes';
 export * from './notifications';
+export * from './activity';
