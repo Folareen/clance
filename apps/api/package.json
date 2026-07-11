@@ -19,7 +19,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.106.0",
     "@fastify/multipart": "^10.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",

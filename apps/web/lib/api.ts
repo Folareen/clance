@@ -692,13 +692,6 @@ export const api = {
   getProjectDashboard: (projectId: string) =>
     request<ProjectDashboard>(`/api/dashboard/projects/${projectId}`),
 
-  // AI Assistant
-  askAssistant: (projectId: string, message: string, history?: { role: 'user' | 'assistant'; content: string }[]) =>
-    request<{ reply: string }>(`/api/projects/${projectId}/assistant/ask`, {
-      method: "POST",
-      body: { message, history },
-    }),
-
   // Search
   search: (query: string) =>
     request<SearchResults>(`/api/search?q=${encodeURIComponent(query)}`),

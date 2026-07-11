@@ -10,7 +10,6 @@ import { NoteModule } from './note/note.module';
 import { ChatModule } from './chat/chat.module';
 import { UploadModule } from './upload/upload.module';
 import { DashboardModule } from './dashboard/dashboard.module';
-import { AssistantModule } from './assistant/assistant.module';
 import { SearchModule } from './search/search.module';
 import { NotificationModule } from './notification/notification.module';
 import { ActivityModule } from './activity/activity.module';
@@ -27,7 +26,6 @@ import { MeetingModule } from './meeting/meeting.module';
     ChatModule,
     UploadModule,
     DashboardModule,
-    AssistantModule,
     SearchModule,
     NotificationModule,
     ActivityModule,
