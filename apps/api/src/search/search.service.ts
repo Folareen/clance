@@ -87,15 +87,24 @@ export class SearchService {
             channel_name: channels.name,
             channel_type: channels.type,
             created_at: messages.created_at,
+            task_id: tasks.id,
+            task_number: tasks.task_number,
+            task_title: tasks.title,
           })
           .from(messages)
           .innerJoin(channels, eq(channels.id, messages.channel_id))
           .innerJoin(users, eq(users.id, messages.sender_id))
+          .leftJoin(
+            tasks,
+            and(
+              eq(channels.type, 'task_comment'),
+              sql`${channels.name} = 'task:' || ${tasks.id}`,
+            ),
+          )
           .where(
             and(
               sql`${channels.project_id} IN ${projectIds}`,
               ilike(messages.content, term),
-              sql`${channels.type} != 'task_comment'`,
             ),
           )
           .orderBy(desc(messages.created_at))

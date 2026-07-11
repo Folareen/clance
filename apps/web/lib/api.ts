@@ -327,6 +327,9 @@ export interface SearchResults {
     channel_name: string | null;
     channel_type: string;
     created_at: string;
+    task_id: string | null;
+    task_number: number | null;
+    task_title: string | null;
   }[];
   files: {
     id: string;

@@ -130,6 +130,17 @@ export default function ProjectTasks() {
     }
   }
 
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const parentChain = (task: Task): Task[] => {
+    const chain: Task[] = [];
+    let current = task.parent_id ? taskById.get(task.parent_id) : undefined;
+    while (current) {
+      chain.unshift(current);
+      current = current.parent_id ? taskById.get(current.parent_id) : undefined;
+    }
+    return chain;
+  };
+
   return (
     <div className="p-6 sm:p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
@@ -238,6 +249,7 @@ export default function ProjectTasks() {
                 depth={0}
                 view={view}
                 onOpenChild={openTask}
+                parentChain={view === "list" ? parentChain(task) : undefined}
               />
             ))}
           </div>
@@ -292,6 +304,7 @@ function TaskRow({
   depth,
   view,
   onOpenChild,
+  parentChain,
 }: {
   task: Task;
   children?: Task[];
@@ -299,6 +312,7 @@ function TaskRow({
   depth: number;
   view: string;
   onOpenChild: (id: string) => void;
+  parentChain?: Task[];
 }) {
   const status = statusConfig[task.status];
   const priority = priorityConfig[task.priority];
@@ -319,6 +333,17 @@ function TaskRow({
       >
         <StatusIcon className={cn("w-4 h-4", status.className)} />
         <div className="min-w-0">
+          {parentChain && parentChain.length > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-content-muted mb-0.5 truncate">
+              {parentChain.map((p, i) => (
+                <span key={p.id} className="flex items-center gap-1 truncate">
+                  {i > 0 && <ChevronRight className="w-2.5 h-2.5 shrink-0" />}
+                  <span className="truncate">#{p.task_number} {p.title}</span>
+                </span>
+              ))}
+              <ChevronRight className="w-2.5 h-2.5 shrink-0" />
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <span className="text-xs text-content-muted font-mono">
               #{task.task_number}

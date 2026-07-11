@@ -16,6 +16,7 @@ import {
   Hash,
   Loader2,
   X,
+  CheckSquare,
 } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { RequireAuth } from "@/components/require-auth";
@@ -193,18 +194,30 @@ function SearchContent() {
                   const sender = msg.sender_first_name
                     ? `${msg.sender_first_name} ${msg.sender_last_name ?? ""}`.trim()
                     : msg.sender_email;
+                  const isTaskComment = msg.channel_type === "task_comment";
+                  const href = isTaskComment
+                    ? `/app/projects/${msg.project_id}/tasks`
+                    : `/app/projects/${msg.project_id}/chat`;
+                  const context = isTaskComment
+                    ? `on #${msg.task_number} ${msg.task_title}`
+                    : `in #${msg.channel_name ?? "dm"}`;
+
                   return (
                     <Link
                       key={msg.id}
-                      href={`/app/projects/${msg.project_id}/chat`}
+                      href={href}
                       className="flex items-start gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
                     >
-                      <MessageCircle className="w-4 h-4 text-content-muted shrink-0 mt-0.5" />
+                      {isTaskComment ? (
+                        <CheckSquare className="w-4 h-4 text-content-muted shrink-0 mt-0.5" />
+                      ) : (
+                        <MessageCircle className="w-4 h-4 text-content-muted shrink-0 mt-0.5" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-xs font-medium text-content">{sender}</span>
-                          <span className="text-[11px] text-content-muted">
-                            in #{msg.channel_name ?? "dm"}
+                          <span className="text-[11px] text-content-muted truncate">
+                            {context}
                           </span>
                         </div>
                         <p className="text-sm text-content-secondary truncate">

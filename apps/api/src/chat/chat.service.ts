@@ -5,7 +5,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { eq, and, desc, or, asc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import {
   channels,
