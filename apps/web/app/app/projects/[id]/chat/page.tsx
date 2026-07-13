@@ -54,6 +54,8 @@ export default function ProjectChat() {
   const [channels, setChannels] = useState<AnyChannel[]>([]);
   const [active, setActive] = useState<AnyChannel | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
@@ -71,9 +73,11 @@ export default function ProjectChat() {
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isLoadingOlderRef = useRef(false);
 
   const projectId = project?.id ?? "";
 
@@ -114,10 +118,37 @@ export default function ProjectChat() {
       .getMessages(projectId, active.id)
       .then((data) => {
         setMessages(data.messages);
+        setHasMoreMessages(data.hasMore);
       })
-      .catch(() => {})
+      .catch(() => {
+        setHasMoreMessages(false);
+      })
       .finally(() => setMsgLoading(false));
   }, [active, projectId]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!active || !projectId || loadingMore || messages.length === 0) return;
+    const oldest = messages[0];
+    const container = messagesScrollRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+
+    setLoadingMore(true);
+    try {
+      const data = await api.getMessages(projectId, active.id, oldest.id);
+      isLoadingOlderRef.current = true;
+      setMessages((prev) => [...data.messages, ...prev]);
+      setHasMoreMessages(data.hasMore);
+
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - prevScrollHeight;
+        }
+      });
+    } catch {
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [active, projectId, loadingMore, messages]);
 
   useEffect(() => {
     if (!socket || !active || !projectId) return;
@@ -244,6 +275,10 @@ export default function ProjectChat() {
   }, [socket, active, projectId, user?.id]);
 
   useEffect(() => {
+    if (isLoadingOlderRef.current) {
+      isLoadingOlderRef.current = false;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -551,7 +586,7 @@ export default function ProjectChat() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+        <div ref={messagesScrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {msgLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-5 h-5 text-content-muted animate-spin" />
@@ -565,6 +600,21 @@ export default function ProjectChat() {
             </div>
           ) : (
             <>
+              {hasMoreMessages && (
+                <div className="flex justify-center pb-2">
+                  <button
+                    onClick={loadOlderMessages}
+                    disabled={loadingMore}
+                    className="text-xs font-medium text-content-secondary hover:text-content px-3 py-1.5 rounded-lg hover:bg-surface-hover transition-colors disabled:opacity-50"
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      "Load older messages"
+                    )}
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-3 my-2">
                 <div className="flex-1 border-t border-stroke" />
                 <span className="text-xs text-content-muted font-medium">

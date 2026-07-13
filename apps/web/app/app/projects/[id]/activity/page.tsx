@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
 import { PagePlaceholder } from "@/components/page-placeholder";
-import { api, type ActivityEntry, type ActivityType } from "@/lib/api";
+import { api, ApiError, type ActivityEntry, type ActivityType } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const activityIcons: Record<ActivityType, LucideIcon> = {
@@ -62,6 +62,7 @@ export default function ProjectActivity() {
   const { project } = useProject();
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const projectId = project?.id ?? "";
 
@@ -70,7 +71,10 @@ export default function ProjectActivity() {
     try {
       const data = await api.listActivity(projectId);
       setEntries(data);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load activity");
+    }
     setLoading(false);
   }, [projectId]);
 
@@ -79,13 +83,19 @@ export default function ProjectActivity() {
   }, [loadActivity]);
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-content">Activity Log</h1>
         <p className="text-content-secondary mt-1">
           Every status change, approval, edit, and upload — timestamped
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">

@@ -3,11 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  CheckSquare,
-  MessageCircle,
-  FileText,
-  Folder,
-  Settings,
   Circle,
   Clock,
   CheckCircle2,
@@ -15,8 +10,11 @@ import {
   Send,
   Users as UsersIcon,
   Loader2,
+  CheckSquare,
+  Plus,
 } from "lucide-react";
 import { ProjectAvatar } from "@/components/project-avatar";
+import { PagePlaceholder } from "@/components/page-placeholder";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
 import {
@@ -36,6 +34,8 @@ const statusConfig: Record<
   submitted: { label: "Submitted", icon: AlertCircle, className: "text-warning" },
   approved: { label: "Approved", icon: CheckCircle2, className: "text-success" },
 };
+
+const UNKNOWN_STATUS = { label: "Unknown", icon: Circle, className: "text-content-muted" };
 
 function formatDue(iso: string) {
   const d = new Date(iso);
@@ -65,25 +65,18 @@ export default function ProjectOverview() {
 
   const me = project.members.find((m) => m.user_id === user?.id);
 
-  const quickLinks = [
-    { name: "Tasks", href: `/app/projects/${project.id}/tasks`, icon: CheckSquare },
-    { name: "Chat", href: `/app/projects/${project.id}/chat`, icon: MessageCircle },
-    { name: "Notes", href: `/app/projects/${project.id}/notes`, icon: FileText },
-    { name: "Files", href: `/app/projects/${project.id}/files`, icon: Folder },
-  ];
-
   return (
-    <div className="p-6 sm:p-8 max-w-4xl mx-auto">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-start gap-4 mb-8">
-        <ProjectAvatar project={project} size={48} className="rounded-xl" />
-        <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-4 mb-6">
+        <ProjectAvatar project={project} size={40} className="rounded-lg shrink-0" />
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-semibold text-content">
+            <h1 className="text-2xl font-semibold text-content truncate">
               {project.name}
             </h1>
             {me && (
-              <span className="text-xs text-content-muted capitalize">
+              <span className="text-xs text-content-muted capitalize shrink-0">
                 {me.role}
               </span>
             )}
@@ -92,13 +85,6 @@ export default function ProjectOverview() {
             {project.description || "No description yet."}
           </p>
         </div>
-        <Link
-          href={`/app/projects/${project.id}/settings`}
-          className="flex items-center gap-1.5 text-sm text-content-secondary hover:text-content transition-colors shrink-0"
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </Link>
       </div>
 
       {/* Task stats */}
@@ -164,7 +150,7 @@ export default function ProjectOverview() {
           </h2>
           <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
             {dashboard.recent_tasks.map((task) => {
-              const cfg = statusConfig[task.status];
+              const cfg = statusConfig[task.status] ?? UNKNOWN_STATUS;
               const Icon = cfg.icon;
               const overdue =
                 task.due_date &&
@@ -199,26 +185,22 @@ export default function ProjectOverview() {
         </div>
       )}
 
-      {/* Jump to */}
-      <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-3">
-        Jump to
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
-        {quickLinks.map((link) => (
-          <Link
-            key={link.name}
-            href={link.href}
-            className="group flex flex-col gap-3 bg-surface border border-stroke rounded-xl p-4 hover:border-accent/40 transition-colors"
-          >
-            <div className="w-10 h-10 rounded-lg bg-surface-hover group-hover:bg-accent-soft flex items-center justify-center transition-colors">
-              <link.icon className="w-5 h-5 text-content-secondary group-hover:text-accent transition-colors" />
-            </div>
-            <span className="font-medium text-content group-hover:text-accent transition-colors">
-              {link.name}
-            </span>
-          </Link>
-        ))}
-      </div>
+      {dashboard && dashboard.total_tasks === 0 && (
+        <PagePlaceholder
+          icon={CheckSquare}
+          title="No tasks yet"
+          description="Create your first task to start tracking work on this project."
+          action={
+            <Link
+              href={`/app/projects/${project.id}/tasks`}
+              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Go to Tasks
+            </Link>
+          }
+        />
+      )}
     </div>
   );
 }

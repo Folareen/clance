@@ -15,11 +15,12 @@ import { cn } from "@/lib/utils";
 import { TopBar } from "@/components/top-bar";
 import { PagePlaceholder } from "@/components/page-placeholder";
 import { RequireAuth } from "@/components/require-auth";
-import { api, type PersonalFileRecord } from "@/lib/api";
+import { api, ApiError, type PersonalFileRecord } from "@/lib/api";
 
 function AllFilesContent() {
   const [files, setFiles] = useState<PersonalFileRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "task" | "message">("all");
 
@@ -27,7 +28,10 @@ function AllFilesContent() {
     try {
       const data = await api.listMyFiles();
       setFiles(data);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load files");
+    }
     setLoading(false);
   }, []);
 
@@ -82,6 +86,12 @@ function AllFilesContent() {
             ))}
           </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12">

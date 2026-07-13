@@ -17,6 +17,7 @@ import { CreateTaskDto, UpdateTaskDto, AssignTaskDto } from './dto';
 import { NotificationService } from '../notification/notification.service';
 import { ActivityService } from '../activity/activity.service';
 import { ChatService } from '../chat/chat.service';
+import { FileService } from '../upload/file.service';
 
 @Injectable()
 export class TaskService {
@@ -25,32 +26,61 @@ export class TaskService {
     private notifications: NotificationService,
     private activity: ActivityService,
     private chatService: ChatService,
+    private fileService: FileService,
   ) {}
 
   async create(project_id: string, dto: CreateTaskDto, user_id: string) {
     await this.requireActiveMember(project_id, user_id);
 
-    const [{ next }] = await this.db
-      .select({
-        next: sql<number>`coalesce(max(${tasks.task_number}), 0) + 1`,
-      })
-      .from(tasks)
-      .where(eq(tasks.project_id, project_id));
+    if (dto.assignee_ids?.length) {
+      await this.requireMembersInProject(project_id, dto.assignee_ids);
+    }
+    if (dto.parent_id) {
+      await this.requireParentInProject(project_id, dto.parent_id);
+    }
 
-    const [task] = await this.db
-      .insert(tasks)
-      .values({
-        project_id,
-        title: dto.title,
-        description: dto.description,
-        status: (dto.status as any) ?? 'backlog',
-        priority: (dto.priority as any) ?? 'none',
-        due_date: dto.due_date ? new Date(dto.due_date) : undefined,
-        parent_id: dto.parent_id,
-        task_number: next,
-        created_by: user_id,
-      })
-      .returning();
+    const task = await this.db.transaction(async (tx) => {
+      // Lock existing rows for this project so two concurrent creates can't
+      // compute the same next task_number.
+      await tx
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(eq(tasks.project_id, project_id))
+        .for('update');
+
+      const [{ next }] = await tx
+        .select({
+          next: sql<number>`coalesce(max(${tasks.task_number}), 0) + 1`,
+        })
+        .from(tasks)
+        .where(eq(tasks.project_id, project_id));
+
+      const [created] = await tx
+        .insert(tasks)
+        .values({
+          project_id,
+          title: dto.title,
+          description: dto.description,
+          status: (dto.status as any) ?? 'backlog',
+          priority: (dto.priority as any) ?? 'none',
+          due_date: dto.due_date ? new Date(dto.due_date) : undefined,
+          parent_id: dto.parent_id,
+          task_number: next,
+          created_by: user_id,
+        })
+        .returning();
+
+      if (dto.assignee_ids?.length) {
+        await tx.insert(task_assignees).values(
+          dto.assignee_ids.map((member_id) => ({
+            task_id: created.id,
+            member_id,
+          })),
+        );
+      }
+
+      return created;
+    });
 
     this.activity.log({
       project_id,
@@ -61,13 +91,6 @@ export class TaskService {
     });
 
     if (dto.assignee_ids?.length) {
-      await this.db.insert(task_assignees).values(
-        dto.assignee_ids.map((member_id) => ({
-          task_id: task.id,
-          member_id,
-        })),
-      );
-
       const assigneeUserIds = await this.resolveUserIds(dto.assignee_ids);
       this.notifications.createMany(assigneeUserIds, {
         type: 'task_assigned',
@@ -203,6 +226,13 @@ export class TaskService {
 
     if (!existing) throw new NotFoundException('Task not found');
 
+    if (dto.parent_id !== undefined && dto.parent_id !== null) {
+      if (dto.parent_id === task_id) {
+        throw new BadRequestException('A task cannot be its own parent');
+      }
+      await this.requireParentInProject(project_id, dto.parent_id);
+    }
+
     const set: Record<string, any> = { updated_at: new Date() };
     if (dto.title !== undefined) set.title = dto.title;
     if (dto.description !== undefined) set.description = dto.description;
@@ -276,7 +306,7 @@ export class TaskService {
   }
 
   async remove(project_id: string, task_id: string, user_id: string) {
-    await this.requireActiveMember(project_id, user_id);
+    const member = await this.requireActiveMember(project_id, user_id);
 
     const [task] = await this.db
       .select()
@@ -285,6 +315,16 @@ export class TaskService {
       .limit(1);
 
     if (!task) throw new NotFoundException('Task not found');
+
+    if (member.role !== 'manager' && task.created_by !== user_id) {
+      throw new ForbiddenException(
+        'Only the task creator or a manager can delete this task',
+      );
+    }
+
+    // Clean up Cloudinary-hosted attachments before the FK cascade removes
+    // the `files` rows that reference them.
+    await this.fileService.removeAllForTask(project_id, task_id);
 
     await this.db.delete(tasks).where(eq(tasks.id, task_id));
   }
@@ -305,18 +345,38 @@ export class TaskService {
 
     if (!task) throw new NotFoundException('Task not found');
 
-    await this.db
-      .delete(task_assignees)
-      .where(eq(task_assignees.task_id, task_id));
+    if (dto.member_ids.length > 0) {
+      await this.requireMembersInProject(project_id, dto.member_ids);
+    }
+
+    const nextStatus =
+      dto.member_ids.length > 0 && task.status === 'backlog'
+        ? 'in_progress'
+        : dto.member_ids.length === 0
+          ? 'backlog'
+          : undefined;
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(task_assignees).where(eq(task_assignees.task_id, task_id));
+
+      if (dto.member_ids.length > 0) {
+        await tx.insert(task_assignees).values(
+          dto.member_ids.map((member_id) => ({
+            task_id,
+            member_id,
+          })),
+        );
+      }
+
+      if (nextStatus) {
+        await tx
+          .update(tasks)
+          .set({ status: nextStatus, updated_at: new Date() })
+          .where(eq(tasks.id, task_id));
+      }
+    });
 
     if (dto.member_ids.length > 0) {
-      await this.db.insert(task_assignees).values(
-        dto.member_ids.map((member_id) => ({
-          task_id,
-          member_id,
-        })),
-      );
-
       const assigneeUserIds = await this.resolveUserIds(dto.member_ids);
       this.notifications.createMany(assigneeUserIds, {
         type: 'task_assigned',
@@ -325,20 +385,6 @@ export class TaskService {
         link: `/app/projects/${project_id}/tasks`,
         actor_id: user_id,
       });
-    }
-
-    if (task.status === 'backlog' && dto.member_ids.length > 0) {
-      await this.db
-        .update(tasks)
-        .set({ status: 'in_progress', updated_at: new Date() })
-        .where(eq(tasks.id, task_id));
-    }
-
-    if (dto.member_ids.length === 0) {
-      await this.db
-        .update(tasks)
-        .set({ status: 'backlog', updated_at: new Date() })
-        .where(eq(tasks.id, task_id));
     }
 
     return this.findOne(project_id, task_id, user_id);
@@ -439,5 +485,35 @@ export class TaskService {
       .from(members)
       .where(sql`${members.id} IN ${memberIds}`);
     return rows.map((r) => r.user_id).filter((id): id is string => !!id);
+  }
+
+  /** Rejects if any given member id doesn't belong to this project, preventing cross-project assignment. */
+  private async requireMembersInProject(project_id: string, memberIds: string[]) {
+    const unique = [...new Set(memberIds)];
+    const rows = await this.db
+      .select({ id: members.id })
+      .from(members)
+      .where(
+        and(eq(members.project_id, project_id), sql`${members.id} IN ${unique}`),
+      );
+
+    if (rows.length !== unique.length) {
+      throw new BadRequestException(
+        'One or more assignees are not members of this project',
+      );
+    }
+  }
+
+  /** Rejects if the given parent task id doesn't exist within this project. */
+  private async requireParentInProject(project_id: string, parent_id: string) {
+    const [parent] = await this.db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.id, parent_id), eq(tasks.project_id, project_id)))
+      .limit(1);
+
+    if (!parent) {
+      throw new BadRequestException('Parent task not found in this project');
+    }
   }
 }

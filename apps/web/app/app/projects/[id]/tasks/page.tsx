@@ -8,6 +8,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  CheckSquare,
   List,
   Network,
   X,
@@ -26,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
+import { PagePlaceholder } from "@/components/page-placeholder";
 import {
   api,
   ApiError,
@@ -61,6 +63,11 @@ const statusConfig: Record<
     className: "text-success",
   },
 };
+
+// Fallback for any status value the frontend doesn't recognize yet (e.g. a
+// new status added server-side before this page redeploys), so an unknown
+// value degrades to a neutral badge instead of crashing the page.
+const UNKNOWN_STATUS = { label: "Unknown", icon: Circle, className: "text-content-muted" };
 
 const priorityConfig: Record<
   TaskPriority,
@@ -142,7 +149,7 @@ export default function ProjectTasks() {
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-content">Tasks</h1>
@@ -228,6 +235,21 @@ export default function ProjectTasks() {
         <div className="text-center py-12 text-content-muted">
           Loading tasks...
         </div>
+      ) : tasks.length === 0 && !search && statusFilter === "all" ? (
+        <PagePlaceholder
+          icon={CheckSquare}
+          title="No tasks yet"
+          description="Create a task to start tracking work on this project."
+          action={
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Task
+            </button>
+          }
+        />
       ) : (
         <div className="bg-surface border border-stroke rounded-xl overflow-hidden">
           <div className="hidden sm:grid grid-cols-[auto_1fr_120px_90px_90px_70px] gap-4 px-5 py-3 border-b border-stroke bg-surface-secondary text-xs font-medium text-content-muted uppercase tracking-wider">
@@ -256,9 +278,7 @@ export default function ProjectTasks() {
 
           {topLevel.length === 0 && (
             <div className="px-5 py-12 text-center text-content-muted">
-              {search || statusFilter !== "all"
-                ? "No tasks match your filters."
-                : "No tasks yet. Create one to get started."}
+              No tasks match your filters.
             </div>
           )}
         </div>
@@ -314,7 +334,7 @@ function TaskRow({
   onOpenChild: (id: string) => void;
   parentChain?: Task[];
 }) {
-  const status = statusConfig[task.status];
+  const status = statusConfig[task.status] ?? UNKNOWN_STATUS;
   const priority = priorityConfig[task.priority];
   const StatusIcon = status.icon;
   const initials = task.assignees?.[0]
@@ -656,6 +676,8 @@ function TaskDetailPanel({
   const [showAssign, setShowAssign] = useState(false);
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<FileRecord | null>(null);
+  const [deletingFileBusy, setDeletingFileBusy] = useState(false);
   const [comments, setComments] = useState<Message[]>([]);
   const [commentInput, setCommentInput] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
@@ -666,6 +688,9 @@ function TaskDetailPanel({
   const { user } = useAuth();
   const isAssignee = task.assignees.some((a) => a.user_id === user?.id);
   const canSubmit = isAssignee || task.created_by === user?.id;
+  const me = members.find((m) => m.user_id === user?.id);
+  const isManager = me?.role === "manager";
+  const canDeleteTask = isManager || task.created_by === user?.id;
 
   const loadFiles = useCallback(async () => {
     try {
@@ -761,7 +786,9 @@ function TaskDetailPanel({
       await api.assignTask(projectId, task.id, memberIds);
       setShowAssign(false);
       onUpdated();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to update assignees");
+    }
   };
 
   const handleDelete = async () => {
@@ -785,16 +812,24 @@ function TaskDetailPanel({
         await api.uploadTaskFile(projectId, task.id, file);
       }
       await loadFiles();
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to upload file");
+    }
     setUploading(false);
     e.target.value = "";
   };
 
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = async () => {
+    if (!deletingFile) return;
+    setDeletingFileBusy(true);
     try {
-      await api.deleteFile(projectId, task.id, fileId);
-      setFiles((prev) => prev.filter((f) => f.id !== fileId));
-    } catch {}
+      await api.deleteFile(projectId, task.id, deletingFile.id);
+      setFiles((prev) => prev.filter((f) => f.id !== deletingFile.id));
+      setDeletingFile(null);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to delete file");
+    }
+    setDeletingFileBusy(false);
   };
 
   const handleSendComment = async () => {
@@ -804,11 +839,13 @@ function TaskDetailPanel({
       const msg = await api.sendComment(projectId, task.id, commentInput.trim());
       setComments((prev) => [...prev, msg]);
       setCommentInput("");
-    } catch {}
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to send comment");
+    }
     setSendingComment(false);
   };
 
-  const status = statusConfig[task.status];
+  const status = statusConfig[task.status] ?? UNKNOWN_STATUS;
   const StatusIcon = status.icon;
 
   return (
@@ -822,12 +859,14 @@ function TaskDetailPanel({
             <span className={status.className}>{status.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="p-1.5 rounded-md hover:bg-danger-soft text-content-muted hover:text-danger transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {canDeleteTask && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-1.5 rounded-md hover:bg-danger-soft text-content-muted hover:text-danger transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-md hover:bg-surface-hover text-content-muted"
@@ -914,7 +953,9 @@ function TaskDetailPanel({
                   <option value="submitted" disabled={!canSubmit}>
                     Submitted{!canSubmit ? " (assignees only)" : ""}
                   </option>
-                  <option value="approved">Approved</option>
+                  <option value="approved" disabled={!isManager}>
+                    Approved{!isManager ? " (managers only)" : ""}
+                  </option>
                 </select>
                 {savingStatus && (
                   <Loader2 className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-content-muted" />
@@ -1001,7 +1042,7 @@ function TaskDetailPanel({
               </label>
               <div className="space-y-1">
                 {task.subtasks.map((sub: any) => {
-                  const s = statusConfig[sub.status as TaskStatus];
+                  const s = statusConfig[sub.status as TaskStatus] ?? UNKNOWN_STATUS;
                   const Icon = s.icon;
                   return (
                     <div
@@ -1064,12 +1105,14 @@ function TaskDetailPanel({
                           {f.size ? formatFileSize(f.size) : ""}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleDeleteFile(f.id)}
-                        className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-danger-soft text-content-muted hover:text-danger transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {(isManager || f.uploaded_by === user?.id) && (
+                        <button
+                          onClick={() => setDeletingFile(f)}
+                          className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-danger-soft text-content-muted hover:text-danger transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -1151,6 +1194,17 @@ function TaskDetailPanel({
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {deletingFile && (
+        <ConfirmModal
+          title="Delete file"
+          message={`Delete "${deletingFile.filename}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          loading={deletingFileBusy}
+          onConfirm={handleDeleteFile}
+          onCancel={() => setDeletingFile(null)}
         />
       )}
 

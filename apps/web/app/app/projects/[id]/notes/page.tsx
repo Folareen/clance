@@ -7,6 +7,7 @@ import { useProject } from "@/components/project-provider";
 import { api, ApiError, type Note } from "@/lib/api";
 import { TiptapEditor, TiptapViewer } from "@/components/tiptap-editor";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { PagePlaceholder } from "@/components/page-placeholder";
 import { toast } from "@/components/toast";
 
 export default function ProjectNotes() {
@@ -80,7 +81,7 @@ export default function ProjectNotes() {
   const rest = notes.filter((n) => !n.pinned);
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-content">Notes</h1>
@@ -108,22 +109,20 @@ export default function ProjectNotes() {
           Loading notes...
         </div>
       ) : notes.length === 0 ? (
-        <div className="text-center py-16">
-          <FileText className="w-12 h-12 text-content-muted mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-content mb-1">
-            No notes yet
-          </h3>
-          <p className="text-content-secondary text-sm mb-6">
-            Create a note to start documenting decisions and ideas.
-          </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            New Note
-          </button>
-        </div>
+        <PagePlaceholder
+          icon={FileText}
+          title="No notes yet"
+          description="Create a note to start documenting decisions and ideas."
+          action={
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New Note
+            </button>
+          }
+        />
       ) : (
         <>
           {pinned.length > 0 && (
@@ -273,17 +272,21 @@ function NoteEditor({
   };
 
   const togglePin = async () => {
-    const next = !pinned;
+    const prev = pinned;
+    const next = !prev;
     setPinned(next);
     if (noteId) {
       try {
         await api.updateNote(projectId, noteId, { pinned: next });
-      } catch {}
+      } catch (err) {
+        setPinned(prev);
+        toast(err instanceof ApiError ? err.message : "Failed to update pin");
+      }
     }
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-4xl">
+    <div className="p-6 sm:p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}

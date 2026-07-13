@@ -7,9 +7,25 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
+import {
+  JoinChannelWsDto,
+  LeaveChannelWsDto,
+  SendMessageWsDto,
+  ToggleReactionWsDto,
+  TogglePinWsDto,
+  TypingWsDto,
+} from './dto';
+
+const wsValidation = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  exceptionFactory: () => ({ status: 'error', message: 'Invalid payload' }),
+});
 
 interface AuthSocket extends Socket {
   userId: string;
@@ -56,9 +72,10 @@ export class ChatGateway
   handleDisconnect(_client: AuthSocket) {}
 
   @SubscribeMessage('join_channel')
+  @UsePipes(wsValidation)
   async handleJoinChannel(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() data: { project_id: string; channel_id: string },
+    @MessageBody() data: JoinChannelWsDto,
   ) {
     try {
       await this.chatService.requireActiveMember(
@@ -74,24 +91,20 @@ export class ChatGateway
   }
 
   @SubscribeMessage('leave_channel')
+  @UsePipes(wsValidation)
   handleLeaveChannel(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() data: { channel_id: string },
+    @MessageBody() data: LeaveChannelWsDto,
   ) {
     client.leave(`channel:${data.channel_id}`);
     return { status: 'ok' };
   }
 
   @SubscribeMessage('send_message')
+  @UsePipes(wsValidation)
   async handleSendMessage(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody()
-    data: {
-      project_id: string;
-      channel_id: string;
-      content: string;
-      parent_message_id?: string;
-    },
+    @MessageBody() data: SendMessageWsDto,
   ) {
     try {
       const message = await this.chatService.sendMessage(
@@ -119,15 +132,10 @@ export class ChatGateway
   }
 
   @SubscribeMessage('toggle_reaction')
+  @UsePipes(wsValidation)
   async handleToggleReaction(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody()
-    data: {
-      project_id: string;
-      channel_id: string;
-      message_id: string;
-      emoji: string;
-    },
+    @MessageBody() data: ToggleReactionWsDto,
   ) {
     try {
       const result = await this.chatService.toggleReaction(
@@ -152,10 +160,10 @@ export class ChatGateway
   }
 
   @SubscribeMessage('toggle_pin')
+  @UsePipes(wsValidation)
   async handleTogglePin(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody()
-    data: { project_id: string; channel_id: string; message_id: string },
+    @MessageBody() data: TogglePinWsDto,
   ) {
     try {
       const result = await this.chatService.togglePin(
@@ -177,9 +185,10 @@ export class ChatGateway
   }
 
   @SubscribeMessage('typing')
+  @UsePipes(wsValidation)
   handleTyping(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() data: { channel_id: string },
+    @MessageBody() data: TypingWsDto,
   ) {
     client.to(`channel:${data.channel_id}`).emit('user_typing', {
       user_id: client.userId,
@@ -188,9 +197,10 @@ export class ChatGateway
   }
 
   @SubscribeMessage('stop_typing')
+  @UsePipes(wsValidation)
   handleStopTyping(
     @ConnectedSocket() client: AuthSocket,
-    @MessageBody() data: { channel_id: string },
+    @MessageBody() data: TypingWsDto,
   ) {
     client.to(`channel:${data.channel_id}`).emit('user_stop_typing', {
       user_id: client.userId,

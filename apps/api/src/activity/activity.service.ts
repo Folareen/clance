@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import { eq, and, desc } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { activity_log, members, users } from '../database/schema';
@@ -21,8 +21,15 @@ type ActivityType =
 
 @Injectable()
 export class ActivityService {
+  private readonly logger = new Logger(ActivityService.name);
+
   constructor(@Inject(DRIZZLE) private db: DrizzleDB) {}
 
+  /**
+   * Callers intentionally fire-and-forget this (activity logging is a
+   * secondary side-effect that shouldn't fail the main request), so errors
+   * are caught and logged here rather than left as an unhandled rejection.
+   */
   async log(params: {
     project_id: string;
     actor_id?: string;
@@ -31,14 +38,18 @@ export class ActivityService {
     body?: string;
     link?: string;
   }) {
-    await this.db.insert(activity_log).values({
-      project_id: params.project_id,
-      actor_id: params.actor_id,
-      type: params.type,
-      summary: params.summary,
-      body: params.body,
-      link: params.link,
-    });
+    try {
+      await this.db.insert(activity_log).values({
+        project_id: params.project_id,
+        actor_id: params.actor_id,
+        type: params.type,
+        summary: params.summary,
+        body: params.body,
+        link: params.link,
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to log activity for project ${params.project_id}: ${err}`);
+    }
   }
 
   async list(project_id: string, user_id: string, limit = 50, offset = 0) {

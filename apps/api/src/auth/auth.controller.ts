@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import {
@@ -35,24 +36,28 @@ export class AuthController {
   }
 
   @Post('signup')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   signup(@Body() dto: SignupDto) {
     return this.auth.signup(dto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
   }
 
   @Post('google')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   googleAuth(@Body() dto: GoogleAuthDto) {
     return this.auth.googleAuth(dto);
   }
 
   @Post('send-code')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
   async sendCode(@Body() dto: SendCodeDto) {
     await this.auth.sendCode(dto);
     return { message: 'Code sent' };
@@ -60,6 +65,7 @@ export class AuthController {
 
   @Post('verify-code')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   verifyCode(@Body() dto: VerifyCodeDto) {
     return this.auth.verifyCode(dto);
   }
@@ -72,6 +78,7 @@ export class AuthController {
 
   @Post('request-reset-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
   async requestResetPassword(@Body() dto: RequestResetPasswordDto) {
     await this.auth.requestResetPassword(dto.email);
     return { message: 'If an account with that email exists, a reset link has been sent' };
@@ -79,6 +86,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.auth.resetPassword(dto.token, dto.new_password);
     return { message: 'Password has been reset successfully' };

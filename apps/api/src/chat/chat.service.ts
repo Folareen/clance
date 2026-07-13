@@ -317,6 +317,26 @@ export class ChatService {
     await this.requireActiveMember(project_id, user_id);
     await this.requireChannelAccess(project_id, channel_id, user_id);
 
+    // cursor = the id of the oldest message currently loaded on the client;
+    // "load more" asks for messages strictly older than it (keyset pagination).
+    let cursorCreatedAt: Date | undefined;
+    if (cursor) {
+      const [cursorRow] = await this.db
+        .select({ created_at: messages.created_at })
+        .from(messages)
+        .where(and(eq(messages.id, cursor), eq(messages.channel_id, channel_id)))
+        .limit(1);
+      cursorCreatedAt = cursorRow?.created_at;
+    }
+
+    const conditions = [
+      eq(messages.channel_id, channel_id),
+      sql`${messages.parent_message_id} IS NULL`,
+    ];
+    if (cursorCreatedAt) {
+      conditions.push(sql`${messages.created_at} < ${cursorCreatedAt}`);
+    }
+
     const rows = await this.db
       .select({
         message: messages,
@@ -327,12 +347,7 @@ export class ChatService {
       })
       .from(messages)
       .innerJoin(users, eq(users.id, messages.sender_id))
-      .where(
-        and(
-          eq(messages.channel_id, channel_id),
-          sql`${messages.parent_message_id} IS NULL`,
-        ),
-      )
+      .where(and(...conditions))
       .orderBy(desc(messages.created_at))
       .limit(limit + 1);
 

@@ -1,9 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { DRIZZLE, DrizzleDB } from '../database';
-import { notifications, users, projects } from '../database/schema';
+import { notifications, users, projects, notification_preferences } from '../database/schema';
 import { EmailService } from '../email/email.service';
 import { PushService } from '../push/push.service';
+import { UpdatePreferencesDto } from './dto';
 
 type NotificationType =
   | 'task_assigned'
@@ -16,6 +17,32 @@ type NotificationType =
   | 'mentioned'
   | 'message_pinned';
 
+// Maps each notification type to the preference category that gates its
+// email/push delivery. In-app notification rows (the bell icon) are always
+// created regardless of preferences — these only control outbound channels.
+// There's no distinct "approval requested" notification type today (it's
+// folded into task_status_changed alongside routine updates), so `approvals`
+// isn't separately addressable here yet — it's stored for forward
+// compatibility once that distinction exists at the call site.
+const CATEGORY_BY_TYPE: Record<NotificationType, 'mentions' | 'task_updates' | null> = {
+  mentioned: 'mentions',
+  dm_received: 'mentions',
+  task_assigned: 'task_updates',
+  task_status_changed: 'task_updates',
+  task_commented: 'task_updates',
+  meeting_created: 'task_updates',
+  message_pinned: 'task_updates',
+  project_invited: null,
+  member_joined: null,
+};
+
+const DEFAULT_PREFERENCES = {
+  email: true,
+  mentions: true,
+  task_updates: true,
+  approvals: true,
+};
+
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
@@ -26,6 +53,7 @@ export class NotificationService {
     private push: PushService,
   ) {}
 
+  /** Callers use this fire-and-forget, so failures are caught and logged here instead of becoming unhandled rejections. */
   async create(params: {
     user_id: string;
     type: NotificationType;
@@ -37,25 +65,33 @@ export class NotificationService {
   }) {
     if (params.actor_id && params.actor_id === params.user_id) return;
 
-    const [notification] = await this.db
-      .insert(notifications)
-      .values({
-        user_id: params.user_id,
-        type: params.type,
-        title: params.title,
-        body: params.body,
-        project_id: params.project_id,
-        link: params.link,
-        actor_id: params.actor_id,
-      })
-      .returning();
+    try {
+      const [notification] = await this.db
+        .insert(notifications)
+        .values({
+          user_id: params.user_id,
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          project_id: params.project_id,
+          link: params.link,
+          actor_id: params.actor_id,
+        })
+        .returning();
 
-    this.sendEmail(params.user_id, params.title, params.body, params.link);
-    this.sendPush(params.user_id, params.title, params.body, params.link);
+      if (await this.isCategoryEnabled(params.user_id, params.type)) {
+        this.sendEmail(params.user_id, params.title, params.body, params.link);
+        this.sendPush(params.user_id, params.title, params.body, params.link);
+      }
 
-    return notification;
+      return notification;
+    } catch (err) {
+      this.logger.warn(`Failed to create notification for user ${params.user_id}: ${err}`);
+      return undefined;
+    }
   }
 
+  /** Same fire-and-forget contract as create(). */
   async createMany(
     userIds: string[],
     params: {
@@ -73,21 +109,28 @@ export class NotificationService {
 
     if (filtered.length === 0) return;
 
-    await this.db.insert(notifications).values(
-      filtered.map((user_id) => ({
-        user_id,
-        type: params.type,
-        title: params.title,
-        body: params.body,
-        project_id: params.project_id,
-        link: params.link,
-        actor_id: params.actor_id,
-      })),
-    );
+    try {
+      await this.db.insert(notifications).values(
+        filtered.map((user_id) => ({
+          user_id,
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          project_id: params.project_id,
+          link: params.link,
+          actor_id: params.actor_id,
+        })),
+      );
+    } catch (err) {
+      this.logger.warn(`Failed to create notifications for ${filtered.length} users: ${err}`);
+      return;
+    }
 
     for (const userId of filtered) {
-      this.sendEmail(userId, params.title, params.body, params.link);
-      this.sendPush(userId, params.title, params.body, params.link);
+      if (await this.isCategoryEnabled(userId, params.type)) {
+        this.sendEmail(userId, params.title, params.body, params.link);
+        this.sendPush(userId, params.title, params.body, params.link);
+      }
     }
   }
 
@@ -159,8 +202,43 @@ export class NotificationService {
       );
   }
 
+  async getPreferences(user_id: string) {
+    const [row] = await this.db
+      .select()
+      .from(notification_preferences)
+      .where(eq(notification_preferences.user_id, user_id))
+      .limit(1);
+
+    if (!row) return { user_id, ...DEFAULT_PREFERENCES };
+    return row;
+  }
+
+  async updatePreferences(user_id: string, dto: UpdatePreferencesDto) {
+    const [updated] = await this.db
+      .insert(notification_preferences)
+      .values({ user_id, ...DEFAULT_PREFERENCES, ...dto })
+      .onConflictDoUpdate({
+        target: notification_preferences.user_id,
+        set: { ...dto, updated_at: new Date() },
+      })
+      .returning();
+
+    return updated;
+  }
+
+  private async isCategoryEnabled(user_id: string, type: NotificationType): Promise<boolean> {
+    const category = CATEGORY_BY_TYPE[type];
+    if (!category) return true;
+
+    const prefs = await this.getPreferences(user_id);
+    return prefs[category];
+  }
+
   private async sendEmail(userId: string, title: string, body?: string, link?: string) {
     try {
+      const prefs = await this.getPreferences(userId);
+      if (!prefs.email) return;
+
       const [user] = await this.db
         .select({ email: users.email })
         .from(users)

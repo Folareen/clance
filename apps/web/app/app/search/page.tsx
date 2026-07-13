@@ -33,6 +33,8 @@ const statusConfig: Record<
   approved: { label: "Approved", icon: CheckCircle2, className: "text-success" },
 };
 
+const UNKNOWN_STATUS = { label: "Unknown", icon: Circle, className: "text-content-muted" };
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -137,7 +139,7 @@ function SearchContent() {
             {results!.tasks.length > 0 && (
               <ResultSection title="Tasks" count={results!.tasks.length}>
                 {results!.tasks.map((task) => {
-                  const cfg = statusConfig[task.status];
+                  const cfg = statusConfig[task.status] ?? UNKNOWN_STATUS;
                   const Icon = cfg.icon;
                   return (
                     <Link

@@ -13,11 +13,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
 import { api, ApiError, type FileRecord } from "@/lib/api";
+import { PagePlaceholder } from "@/components/page-placeholder";
 
 export default function ProjectFiles() {
   const { project } = useProject();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "task" | "message">("all");
 
@@ -28,7 +30,10 @@ export default function ProjectFiles() {
     try {
       const data = await api.listProjectFiles(projectId);
       setFiles(data);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load files");
+    }
     setLoading(false);
   }, [projectId]);
 
@@ -44,7 +49,7 @@ export default function ProjectFiles() {
   });
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-content">Files</h1>
@@ -83,19 +88,25 @@ export default function ProjectFiles() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
+          {error}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
         </div>
+      ) : files.length === 0 ? (
+        <PagePlaceholder
+          icon={FileIcon}
+          title="No files yet"
+          description="Files only exist as attachments on tasks or chats."
+        />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <FileIcon className="w-12 h-12 text-content-muted mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-content mb-1">
-            {files.length === 0 ? "No files yet" : "No files match your search"}
-          </h3>
-          <p className="text-content-secondary text-sm">
-            Files only exist as attachments on tasks or chats.
-          </p>
+        <div className="px-5 py-12 text-center text-content-muted">
+          No files match your search.
         </div>
       ) : (
         <div className="bg-surface border border-stroke rounded-xl overflow-hidden">

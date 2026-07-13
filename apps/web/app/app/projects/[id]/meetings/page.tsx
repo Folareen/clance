@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Video, Plus, ExternalLink, Loader2, CheckSquare, X, Pencil, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
+import { useAuth } from "@/components/auth-provider";
 import { PagePlaceholder } from "@/components/page-placeholder";
 import { toast } from "@/components/toast";
 import { ConfirmModal } from "@/components/confirm-modal";
@@ -30,21 +31,29 @@ function toLocalInputValue(iso: string) {
 
 export default function ProjectMeetings() {
   const { project } = useProject();
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [deleting, setDeleting] = useState<Meeting | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const projectId = project?.id ?? "";
+  const me = project?.members.find((m) => m.user_id === user?.id);
+  const canManage = (m: Meeting) =>
+    me?.role === "manager" || m.created_by === user?.id;
 
   const loadMeetings = useCallback(async () => {
     if (!projectId) return;
     try {
       const data = await api.listMeetings(projectId);
       setMeetings(data);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load meetings");
+    }
     setLoading(false);
   }, [projectId]);
 
@@ -66,7 +75,7 @@ export default function ProjectMeetings() {
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-content">Meetings</h1>
@@ -82,6 +91,12 @@ export default function ProjectMeetings() {
           Log Meeting
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -142,22 +157,24 @@ export default function ProjectMeetings() {
                   </a>
                 )}
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <button
-                  onClick={() => setEditing(m)}
-                  title="Edit"
-                  className="p-1.5 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setDeleting(m)}
-                  title="Delete"
-                  className="p-1.5 rounded-lg text-content-muted hover:text-danger hover:bg-danger-soft transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              {canManage(m) && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button
+                    onClick={() => setEditing(m)}
+                    title="Edit"
+                    className="p-1.5 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleting(m)}
+                    title="Delete"
+                    className="p-1.5 rounded-lg text-content-muted hover:text-danger hover:bg-danger-soft transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

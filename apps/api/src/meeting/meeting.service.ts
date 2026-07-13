@@ -80,7 +80,7 @@ export class MeetingService {
   }
 
   async update(project_id: string, meeting_id: string, dto: UpdateMeetingDto, user_id: string) {
-    await this.requireActiveMember(project_id, user_id);
+    const member = await this.requireActiveMember(project_id, user_id);
 
     const [existing] = await this.db
       .select()
@@ -89,6 +89,12 @@ export class MeetingService {
       .limit(1);
 
     if (!existing) throw new NotFoundException('Meeting not found');
+
+    if (member.role !== 'manager' && existing.created_by !== user_id) {
+      throw new ForbiddenException(
+        'Only the meeting creator or a manager can edit this meeting',
+      );
+    }
 
     if (dto.task_id) {
       const [task] = await this.db
@@ -126,7 +132,7 @@ export class MeetingService {
   }
 
   async remove(project_id: string, meeting_id: string, user_id: string) {
-    await this.requireActiveMember(project_id, user_id);
+    const member = await this.requireActiveMember(project_id, user_id);
 
     const [meeting] = await this.db
       .select()
@@ -135,6 +141,12 @@ export class MeetingService {
       .limit(1);
 
     if (!meeting) throw new NotFoundException('Meeting not found');
+
+    if (member.role !== 'manager' && meeting.created_by !== user_id) {
+      throw new ForbiddenException(
+        'Only the meeting creator or a manager can delete this meeting',
+      );
+    }
 
     await this.db.delete(meetings).where(eq(meetings.id, meeting_id));
   }

@@ -154,22 +154,37 @@ export class AuthService {
     await this.email.sendLoginCodeEmail(dto.email, code);
   }
 
-  async verifyCode(dto: VerifyCodeDto) {
-    const code_hash = this.hashToken(dto.code);
+  private readonly MAX_CODE_ATTEMPTS = 5;
 
+  async verifyCode(dto: VerifyCodeDto) {
+    const email = dto.email.toLowerCase();
+
+    // Look up the newest unused, unexpired code for this email regardless of
+    // whether it matches, so a wrong guess can still increment its attempts
+    // counter and eventually lock it out (brute-force protection).
     const [record] = await this.db
       .select()
       .from(email_codes)
       .where(
-        and(
-          eq(email_codes.email, dto.email.toLowerCase()),
-          eq(email_codes.code_hash, code_hash),
-          eq(email_codes.used, false),
-        ),
+        and(eq(email_codes.email, email), eq(email_codes.used, false)),
       )
+      .orderBy(sql`${email_codes.created_at} desc`)
       .limit(1);
 
-    if (!record || record.expires_at < new Date()) {
+    if (
+      !record ||
+      record.expires_at < new Date() ||
+      record.attempts >= this.MAX_CODE_ATTEMPTS
+    ) {
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+
+    const code_hash = this.hashToken(dto.code);
+    if (record.code_hash !== code_hash) {
+      await this.db
+        .update(email_codes)
+        .set({ attempts: record.attempts + 1 })
+        .where(eq(email_codes.id, record.id));
       throw new UnauthorizedException('Invalid or expired code');
     }
 

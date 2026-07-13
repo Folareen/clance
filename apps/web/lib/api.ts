@@ -385,6 +385,14 @@ export interface Notification {
   project_name: string | null;
 }
 
+export interface NotificationPreferences {
+  user_id: string;
+  email: boolean;
+  mentions: boolean;
+  task_updates: boolean;
+  approvals: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -741,4 +749,13 @@ export const api = {
 
   markAllRead: () =>
     request<void>("/api/notifications/read-all", { method: "POST" }),
+
+  getNotificationPreferences: () =>
+    request<NotificationPreferences>("/api/notifications/preferences"),
+
+  updateNotificationPreferences: (dto: Partial<Omit<NotificationPreferences, "user_id">>) =>
+    request<NotificationPreferences>("/api/notifications/preferences", {
+      method: "PATCH",
+      body: dto,
+    }),
 };

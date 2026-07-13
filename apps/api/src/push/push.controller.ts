@@ -17,7 +17,7 @@ export class PushController {
 
   @Delete('unsubscribe')
   @HttpCode(HttpStatus.NO_CONTENT)
-  unsubscribe(@Body() dto: UnsubscribeDto) {
-    return this.pushService.unsubscribe(dto.endpoint);
+  unsubscribe(@Body() dto: UnsubscribeDto, @CurrentUser() user: AuthUser) {
+    return this.pushService.unsubscribe(user.id, dto.endpoint);
   }
 }

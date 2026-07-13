@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import webpush from 'web-push';
 import { DRIZZLE, DrizzleDB } from '../database';
 import { push_subscriptions } from '../database/schema';
@@ -38,8 +38,15 @@ export class PushService {
       });
   }
 
-  async unsubscribe(endpoint: string) {
-    await this.db.delete(push_subscriptions).where(eq(push_subscriptions.endpoint, endpoint));
+  async unsubscribe(user_id: string, endpoint: string) {
+    await this.db
+      .delete(push_subscriptions)
+      .where(
+        and(
+          eq(push_subscriptions.endpoint, endpoint),
+          eq(push_subscriptions.user_id, user_id),
+        ),
+      );
   }
 
   async sendToUser(user_id: string, payload: { title: string; body?: string; link?: string }) {

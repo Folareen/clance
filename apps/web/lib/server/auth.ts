@@ -56,7 +56,12 @@ export async function getRefreshToken(): Promise<string | undefined> {
 async function readBody(res: Response): Promise<unknown> {
   if (res.status === 204) return null;
   const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function jsonResponse(body: unknown, status: number) {
@@ -64,8 +69,13 @@ function jsonResponse(body: unknown, status: number) {
   return NextResponse.json(body, { status });
 }
 
-let refreshInFlight: Promise<{ access: string; refresh: string } | null> | null =
-  null;
+// Keyed by the caller's own refresh token so concurrent requests from the
+// same session dedupe their refresh call, without ever handing one user's
+// refreshed tokens to a different user's concurrent request.
+const refreshInFlight = new Map<
+  string,
+  Promise<{ access: string; refresh: string } | null>
+>();
 
 async function fetchNewTokens(
   refresh_token: string
@@ -76,25 +86,74 @@ async function fetchNewTokens(
     body: JSON.stringify({ refresh_token }),
   });
   if (!res.ok) return null;
-  const data = await res.json();
-  return { access: data.access_token, refresh: data.refresh_token };
+  try {
+    const data = await res.json();
+    if (!data?.access_token || !data?.refresh_token) return null;
+    return { access: data.access_token, refresh: data.refresh_token };
+  } catch {
+    return null;
+  }
 }
 
 export async function tryRefreshTokens(): Promise<boolean> {
   const rt = await getRefreshToken();
   if (!rt) return false;
 
-  if (!refreshInFlight) {
-    refreshInFlight = fetchNewTokens(rt).finally(() => {
-      refreshInFlight = null;
+  let pending = refreshInFlight.get(rt);
+  if (!pending) {
+    pending = fetchNewTokens(rt).finally(() => {
+      refreshInFlight.delete(rt);
     });
+    refreshInFlight.set(rt, pending);
   }
 
-  const tokens = await refreshInFlight;
+  const tokens = await pending;
   if (!tokens) return false;
 
   await setAuthCookies(tokens.access, tokens.refresh);
   return true;
+}
+
+/**
+ * For the simple unauthenticated auth flows (login/signup/etc.): forwards the
+ * request body to the backend and, on success, optionally sets auth cookies.
+ * Guards JSON parsing on both ends so a malformed client body or a non-JSON
+ * upstream error (e.g. a gateway timeout returning an HTML page) can't throw
+ * an unhandled exception out of the route handler.
+ */
+export async function forwardAuthRequest(
+  req: Request,
+  backendPath: string,
+  options: { setCookies?: boolean } = {}
+) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
+  }
+
+  const res = await fetch(`${API}${backendPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await readBody(res);
+  if (!res.ok) {
+    return NextResponse.json(data ?? { message: "Request failed" }, { status: res.status });
+  }
+
+  if (options.setCookies) {
+    const parsed = data as { access_token?: string; refresh_token?: string; user?: unknown } | null;
+    if (!parsed?.access_token || !parsed?.refresh_token) {
+      return NextResponse.json({ message: "Unexpected response from server" }, { status: 502 });
+    }
+    await setAuthCookies(parsed.access_token, parsed.refresh_token);
+    return NextResponse.json({ user: parsed.user });
+  }
+
+  return NextResponse.json(data, { status: res.status });
 }
 
 export async function proxyRawToApi(

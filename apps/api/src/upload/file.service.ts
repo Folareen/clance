@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -17,6 +18,28 @@ import {
 } from '../database/schema';
 import { CloudinaryService } from './cloudinary.service';
 import { ActivityService } from '../activity/activity.service';
+
+// Allowlist covers common office/doc/image/archive/media types shared in a
+// project workspace. Executables, HTML, and inline-scriptable SVGs are
+// deliberately excluded to avoid stored-XSS/malware distribution through
+// Cloudinary-hosted links shared with other project members.
+const ALLOWED_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip',
+  'application/json',
+]);
 
 @Injectable()
 export class FileService {
@@ -37,6 +60,12 @@ export class FileService {
     size?: number,
   ) {
     await this.requireActiveMember(project_id, user_id);
+
+    if (!mimetype || !ALLOWED_MIME_TYPES.has(mimetype)) {
+      throw new BadRequestException(
+        `File type "${mimetype ?? 'unknown'}" is not allowed`,
+      );
+    }
 
     const result = await this.cloudinary.upload(fileBuffer, {
       folder: `clance/${project_id}/${attach_type}s`,
@@ -222,7 +251,7 @@ export class FileService {
   }
 
   async remove(project_id: string, file_id: string, user_id: string) {
-    await this.requireActiveMember(project_id, user_id);
+    const member = await this.requireActiveMember(project_id, user_id);
 
     const [file] = await this.db
       .select()
@@ -234,8 +263,44 @@ export class FileService {
 
     if (!file) throw new NotFoundException('File not found');
 
+    if (member.role !== 'manager' && file.uploaded_by !== user_id) {
+      throw new ForbiddenException(
+        'Only the uploader or a manager can delete this file',
+      );
+    }
+
     await this.cloudinary.remove(file.cloudinary_id);
     await this.db.delete(files).where(eq(files.id, file_id));
+  }
+
+  /**
+   * Deletes the Cloudinary assets for every file under a project before the
+   * project row is deleted. The `files` DB rows cascade-delete via FK, but
+   * Cloudinary storage does not — call this first or the blobs leak forever.
+   */
+  async removeAllForProject(project_id: string) {
+    const rows = await this.db
+      .select({ cloudinary_id: files.cloudinary_id })
+      .from(files)
+      .where(eq(files.project_id, project_id));
+
+    await Promise.all(rows.map((f) => this.cloudinary.remove(f.cloudinary_id)));
+  }
+
+  /** Same as removeAllForProject, scoped to files attached to a single task before it's deleted. */
+  async removeAllForTask(project_id: string, task_id: string) {
+    const rows = await this.db
+      .select({ cloudinary_id: files.cloudinary_id })
+      .from(files)
+      .where(
+        and(
+          eq(files.project_id, project_id),
+          eq(files.attach_type, 'task'),
+          eq(files.attach_id, task_id),
+        ),
+      );
+
+    await Promise.all(rows.map((f) => this.cloudinary.remove(f.cloudinary_id)));
   }
 
   private async requireActiveMember(project_id: string, user_id: string) {

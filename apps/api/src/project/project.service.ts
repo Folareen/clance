@@ -21,6 +21,7 @@ import {
 } from './dto';
 import { NotificationService } from '../notification/notification.service';
 import { ActivityService } from '../activity/activity.service';
+import { FileService } from '../upload/file.service';
 
 @Injectable()
 export class ProjectService {
@@ -30,6 +31,7 @@ export class ProjectService {
     private auth: AuthService,
     private notificationService: NotificationService,
     private activity: ActivityService,
+    private fileService: FileService,
   ) {}
 
   async create(dto: CreateProjectDto, user: AuthUser) {
@@ -75,7 +77,7 @@ export class ProjectService {
   }
 
   async findOne(project_id: string, user_id: string) {
-    await this.requireActiveMember(project_id, user_id);
+    const me = await this.requireActiveMember(project_id, user_id);
 
     const [project] = await this.db
       .select()
@@ -100,7 +102,7 @@ export class ProjectService {
       .leftJoin(users, eq(users.id, members.user_id))
       .where(eq(members.project_id, project_id));
 
-    return { ...project, members: project_members };
+    return { ...project, role: me.role, label: me.label, members: project_members };
   }
 
   async update(project_id: string, dto: UpdateProjectDto, user_id: string) {
@@ -124,6 +126,10 @@ export class ProjectService {
 
   async remove(project_id: string, user_id: string) {
     await this.requireManager(project_id, user_id);
+
+    // Clean up Cloudinary-hosted assets before the FK cascade removes the
+    // `files` rows that reference them, or the blobs leak permanently.
+    await this.fileService.removeAllForProject(project_id);
 
     await this.db.delete(projects).where(eq(projects.id, project_id));
   }
@@ -326,8 +332,10 @@ export class ProjectService {
       }
     }
 
-    await this.unassignSoleTasksFor(project_id, member.id);
-    await this.db.delete(members).where(eq(members.id, member.id));
+    await this.db.transaction(async (tx) => {
+      await this.unassignSoleTasksFor(tx, project_id, member.id);
+      await tx.delete(members).where(eq(members.id, member.id));
+    });
 
     this.activity.log({
       project_id,
@@ -357,8 +365,10 @@ export class ProjectService {
       throw new ForbiddenException('Cannot remove yourself');
     }
 
-    await this.unassignSoleTasksFor(project_id, member_id);
-    await this.db.delete(members).where(eq(members.id, member_id));
+    await this.db.transaction(async (tx) => {
+      await this.unassignSoleTasksFor(tx, project_id, member_id);
+      await tx.delete(members).where(eq(members.id, member_id));
+    });
 
     this.activity.log({
       project_id,
@@ -369,8 +379,12 @@ export class ProjectService {
   }
 
   /** Resets tasks to `backlog` if the given member is their only assignee, before that member's rows cascade-delete. */
-  private async unassignSoleTasksFor(project_id: string, member_id: string) {
-    const assignedTasks = await this.db
+  private async unassignSoleTasksFor(
+    db: DrizzleDB,
+    project_id: string,
+    member_id: string,
+  ) {
+    const assignedTasks = await db
       .select({ task_id: task_assignees.task_id })
       .from(task_assignees)
       .innerJoin(tasks, eq(tasks.id, task_assignees.task_id))
@@ -384,7 +398,7 @@ export class ProjectService {
     if (assignedTasks.length === 0) return;
     const taskIds = assignedTasks.map((t) => t.task_id);
 
-    const otherAssigneeCounts = await this.db
+    const otherAssigneeCounts = await db
       .select({
         task_id: task_assignees.task_id,
         count: sql<number>`count(*)::int`,
@@ -400,7 +414,7 @@ export class ProjectService {
 
     if (soleAssignedTaskIds.length === 0) return;
 
-    await this.db
+    await db
       .update(tasks)
       .set({ status: 'backlog', updated_at: new Date() })
       .where(sql`${tasks.id} IN ${soleAssignedTaskIds}`);

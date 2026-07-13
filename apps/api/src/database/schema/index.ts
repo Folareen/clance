@@ -15,3 +15,4 @@ export * from './activity';
 export * from './meetings';
 export * from './message_reactions';
 export * from './push_subscriptions';
+export * from './notification_preferences';

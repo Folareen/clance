@@ -10,6 +10,7 @@ import { toast } from "@/components/toast";
 import { fullName, initials } from "@/lib/display";
 import { cn } from "@/lib/utils";
 import { isPushSupported, getPushSubscription, enablePush, disablePush } from "@/lib/push";
+import { api, ApiError, type NotificationPreferences } from "@/lib/api";
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
@@ -30,16 +31,21 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
   );
 }
 
+const DEFAULT_PREFERENCES: NotificationPreferences = {
+  user_id: "",
+  email: true,
+  mentions: true,
+  task_updates: true,
+  approvals: true,
+};
+
 function SettingsContent() {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
 
-  const [notifications, setNotifications] = useState({
-    email: true,
-    mentions: true,
-    taskUpdates: true,
-    approvals: false,
-  });
+  const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
+  const [prefsLoading, setPrefsLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const [pushSupported, setPushSupported] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -48,6 +54,14 @@ function SettingsContent() {
   useEffect(() => {
     setPushSupported(isPushSupported());
     getPushSubscription().then((sub) => setPushEnabled(!!sub));
+  }, []);
+
+  useEffect(() => {
+    api
+      .getNotificationPreferences()
+      .then(setNotifications)
+      .catch(() => {})
+      .finally(() => setPrefsLoading(false));
   }, []);
 
   const togglePush = useCallback(async () => {
@@ -74,8 +88,20 @@ function SettingsContent() {
     setPushBusy(false);
   }, [pushEnabled, pushBusy]);
 
-  const toggle = (key: keyof typeof notifications) =>
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggle = async (key: keyof Omit<NotificationPreferences, "user_id">) => {
+    if (savingKey) return;
+    const prev = notifications;
+    const next = { ...prev, [key]: !prev[key] };
+    setNotifications(next);
+    setSavingKey(key);
+    try {
+      await api.updateNotificationPreferences({ [key]: next[key] });
+    } catch (err) {
+      setNotifications(prev);
+      toast(err instanceof ApiError ? err.message : "Couldn't save notification preference");
+    }
+    setSavingKey(null);
+  };
 
   const name = fullName(user);
 
@@ -132,7 +158,10 @@ function SettingsContent() {
                   Receive email updates for important events
                 </p>
               </div>
-              <Toggle enabled={notifications.email} onToggle={() => toggle("email")} />
+              <Toggle
+                enabled={notifications.email}
+                onToggle={prefsLoading ? () => {} : () => toggle("email")}
+              />
             </div>
             <div className="flex items-center justify-between gap-4 px-6 py-4">
               <div>
@@ -150,7 +179,7 @@ function SettingsContent() {
             </div>
             {[
               { key: "mentions" as const, title: "@Mentions", description: "When someone mentions you in a message or comment" },
-              { key: "taskUpdates" as const, title: "Task updates", description: "When tasks you're assigned to or watching are updated" },
+              { key: "task_updates" as const, title: "Task updates", description: "When tasks you're assigned to or watching are updated" },
               { key: "approvals" as const, title: "Approval requests", description: "When a team member submits work for your review" },
             ].map((item) => (
               <div key={item.key} className="flex items-center justify-between gap-4 px-6 py-4">
@@ -158,7 +187,10 @@ function SettingsContent() {
                   <p className="text-sm font-medium text-content">{item.title}</p>
                   <p className="text-sm text-content-muted mt-0.5">{item.description}</p>
                 </div>
-                <Toggle enabled={notifications[item.key]} onToggle={() => toggle(item.key)} />
+                <Toggle
+                  enabled={notifications[item.key]}
+                  onToggle={prefsLoading ? () => {} : () => toggle(item.key)}
+                />
               </div>
             ))}
           </div>

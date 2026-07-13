@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -14,6 +15,7 @@ import {
   AuthUser,
 } from '../common/decorators/current-user.decorator';
 import { NotificationService } from './notification.service';
+import { UpdatePreferencesDto } from './dto';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +25,19 @@ export class NotificationController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.notificationService.list(user.id);
+  }
+
+  @Get('preferences')
+  getPreferences(@CurrentUser() user: AuthUser) {
+    return this.notificationService.getPreferences(user.id);
+  }
+
+  @Patch('preferences')
+  updatePreferences(
+    @Body() dto: UpdatePreferencesDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.notificationService.updatePreferences(user.id, dto);
   }
 
   @Get('unread-count')

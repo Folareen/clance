@@ -36,6 +36,8 @@ const typeConfig: Record<
   message_pinned: { icon: Pin, className: "text-warning" },
 };
 
+const UNKNOWN_TYPE = { icon: Bell, className: "text-content-muted" };
+
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "just now";
@@ -126,7 +128,7 @@ function NotificationsContent() {
         ) : (
           <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
             {notifications.map((n) => {
-              const cfg = typeConfig[n.type];
+              const cfg = typeConfig[n.type] ?? UNKNOWN_TYPE;
               const Icon = cfg.icon;
               const actorName = n.actor
                 ? n.actor.first_name
