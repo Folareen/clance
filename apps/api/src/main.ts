@@ -6,6 +6,7 @@ import {
 } from '@nestjs/platform-fastify';
 import multipart from '@fastify/multipart';
 import { AppModule } from './app.module';
+import { startKeepAlive } from './keep-alive';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -28,6 +29,8 @@ async function bootstrap() {
   });
 
   await app.listen({ port: Number(process.env.PORT) || 4000, host: '0.0.0.0' });
+
+  startKeepAlive();
 }
 
 bootstrap();
