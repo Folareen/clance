@@ -28,13 +28,16 @@ export function TopBar() {
         </span>
       </Link>
 
-      <div className="flex-1 max-w-md mx-auto">
+      <div className="flex-1 min-w-0 sm:max-w-md sm:mx-auto">
         <Link
           href="/app/search"
           className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg border border-stroke bg-surface-secondary text-content-muted text-sm hover:border-accent/30 transition-colors"
         >
           <Search className="w-4 h-4 shrink-0" />
-          <span>Search projects, tasks, people…</span>
+          <span className="truncate">
+            <span className="sm:hidden">Search…</span>
+            <span className="hidden sm:inline">Search projects, tasks, people…</span>
+          </span>
           <kbd className="ml-auto text-[11px] bg-surface-active px-1.5 py-0.5 rounded font-mono hidden sm:block">
             ⌘K
           </kbd>
