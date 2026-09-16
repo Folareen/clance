@@ -192,7 +192,7 @@ const GRID_FEATURES = [
   },
   {
     icon: Sparkles,
-    title: "An AI assistant that knows its place — coming soon",
+    title: "An AI assistant that knows its place",
     body: "Read-only Q&A over your real project data, plus manager-only task drafts that need a human to confirm. It will never auto-create.",
   },
   {

@@ -39,7 +39,7 @@ function LoginForm() {
       await login(email, password, from);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong. Try again."
+        err instanceof Error ? err.message : "Something went wrong. Try again."
       );
       setLoading(false);
     }
@@ -104,7 +104,7 @@ function LoginForm() {
       await codeLogin(codeEmail.trim(), fullCode, from);
     } catch (err) {
       setCodeError(
-        err instanceof ApiError ? err.message : "Invalid or expired code"
+        err instanceof Error ? err.message : "Invalid or expired code"
       );
       setCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();

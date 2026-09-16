@@ -6,7 +6,6 @@ import { Mail, User, ArrowRight, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PasswordInput } from "@/components/password-input";
 import { useAuth } from "@/components/auth-provider";
-import { ApiError } from "@/lib/api";
 
 export default function SignupPage() {
   const { signup } = useAuth();
@@ -28,7 +27,7 @@ export default function SignupPage() {
       await signup({ email, password, first_name, last_name });
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Something went wrong. Try again."
+        err instanceof Error ? err.message : "Something went wrong. Try again."
       );
       setLoading(false);
     }

@@ -70,6 +70,14 @@ export interface TaskDetail extends Task {
   subtasks: Task[];
 }
 
+export interface AiDraftTask {
+  title: string;
+  description: string | null;
+  suggested_assignee_member_id: string | null;
+  priority: TaskPriority;
+  parent_id: string | null;
+}
+
 export interface NoteAuthor {
   id: string;
   first_name: string | null;
@@ -574,6 +582,19 @@ export const api = {
     request<Message>(`/api/projects/${projectId}/tasks/${taskId}/comments`, {
       method: "POST",
       body: { content },
+    }),
+
+  // AI Assistant
+  askAssistant: (projectId: string, question: string) =>
+    request<{ answer: string }>(`/api/projects/${projectId}/ai/ask`, {
+      method: "POST",
+      body: { question },
+    }),
+
+  draftTask: (projectId: string, description: string) =>
+    request<AiDraftTask>(`/api/projects/${projectId}/ai/draft-task`, {
+      method: "POST",
+      body: { description },
     }),
 
   // Notes

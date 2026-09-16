@@ -17,6 +17,7 @@ import { NotificationModule } from './notification/notification.module';
 import { ActivityModule } from './activity/activity.module';
 import { MeetingModule } from './meeting/meeting.module';
 import { PushModule } from './push/push.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PushModule } from './push/push.module';
     ActivityModule,
     MeetingModule,
     PushModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

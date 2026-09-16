@@ -36,7 +36,7 @@ function buildNav(projectId: string) {
     secondary: [
       { name: "Meetings", href: `${base}/meetings`, icon: Video },
       { name: "Activity", href: `${base}/activity`, icon: Activity },
-      { name: "AI Assistant", href: `${base}/assistant`, icon: Sparkles, soon: true },
+      { name: "AI Assistant", href: `${base}/assistant`, icon: Sparkles },
       { name: "Settings", href: `${base}/settings`, icon: Settings },
     ],
   };
@@ -120,11 +120,6 @@ export function ProjectNav({ project }: { project: NavProject }) {
             >
               <item.icon className="w-4 h-4 shrink-0" />
               <span className="flex-1">{item.name}</span>
-              {"soon" in item && item.soon && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-surface-hover text-content-muted">
-                  Soon
-                </span>
-              )}
             </Link>
           ))}
         </nav>
