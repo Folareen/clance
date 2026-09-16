@@ -16,7 +16,6 @@ import {
   Calendar,
   Users,
   Trash2,
-  Paperclip,
   Upload,
   FileIcon,
   Image,
@@ -25,9 +24,19 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader, PageBody } from "@/components/page-header";
+import {
+  Button,
+  Card,
+  Input,
+  Segmented,
+  SegmentedItem,
+  EmptyState,
+  SkeletonRows,
+  Alert,
+} from "@/components/ui";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
-import { PagePlaceholder } from "@/components/page-placeholder";
 import {
   api,
   ApiError,
@@ -149,111 +158,94 @@ export default function ProjectTasks() {
     return chain;
   };
 
+  const statusFilters = ["all", "backlog", "in_progress", "submitted", "approved"] as const;
+  const filterLabel = (f: (typeof statusFilters)[number]) =>
+    f === "all"
+      ? "All"
+      : f === "in_progress"
+        ? "In progress"
+        : f.charAt(0).toUpperCase() + f.slice(1);
+
   return (
-    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-content">Tasks</h1>
-          <p className="text-content-secondary mt-1">
-            {tasks.length} task{tasks.length !== 1 ? "s" : ""} in this project
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Task
-        </button>
-      </div>
+    <>
+      <PageHeader
+        title="Tasks"
+        description={`${tasks.length} task${tasks.length !== 1 ? "s" : ""} in this project`}
+        actions={
+          <Button icon={Plus} onClick={() => setShowCreate(true)}>
+            <span className="hidden sm:inline">New task</span>
+            <span className="sm:hidden">New</span>
+          </Button>
+        }
+        toolbar={
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex-1 min-w-0 sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted pointer-events-none" />
+              <Input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tasks…"
+                className="pl-9"
+              />
+            </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+            <Segmented className="shrink-0">
+              <SegmentedItem
+                active={view === "list"}
+                onClick={() => setView("list")}
+                aria-label="List view"
+                className="px-2"
+              >
+                <List className="w-4 h-4" />
+              </SegmentedItem>
+              <SegmentedItem
+                active={view === "tree"}
+                onClick={() => setView("tree")}
+                aria-label="Tree view"
+                className="px-2"
+              >
+                <Network className="w-4 h-4" />
+              </SegmentedItem>
+            </Segmented>
+          </div>
+        }
+      />
+
+      <PageBody>
+        {/* Status filters: scroll horizontally on mobile rather than wrapping */}
+        <div className="-mx-4 sm:mx-0 px-4 sm:px-0 mb-4 overflow-x-auto scroll-none">
+          <Segmented className="w-max">
+            {statusFilters.map((f) => (
+              <SegmentedItem
+                key={f}
+                active={statusFilter === f}
+                onClick={() => setStatusFilter(f)}
+              >
+                {filterLabel(f)}
+              </SegmentedItem>
+            ))}
+          </Segmented>
+        </div>
+
+        {error && <Alert className="mb-4">{error}</Alert>}
+
+        {loading ? (
+          <SkeletonRows rows={6} />
+        ) : tasks.length === 0 && !search && statusFilter === "all" ? (
+          <EmptyState
+            icon={CheckSquare}
+            title="No tasks yet"
+            description="Create a task to start tracking work on this project."
+            action={
+              <Button icon={Plus} onClick={() => setShowCreate(true)}>
+                New task
+              </Button>
+            }
           />
-        </div>
-        <div className="flex items-center gap-1 bg-surface border border-stroke rounded-lg p-0.5">
-          {(
-            ["all", "backlog", "in_progress", "submitted", "approved"] as const
-          ).map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                statusFilter === s
-                  ? "bg-accent text-accent-contrast"
-                  : "text-content-secondary hover:text-content hover:bg-surface-hover"
-              )}
-            >
-              {s === "all"
-                ? "All"
-                : s === "in_progress"
-                  ? "In Progress"
-                  : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1 bg-surface border border-stroke rounded-lg p-0.5 ml-auto">
-          <button
-            onClick={() => setView("list")}
-            className={cn(
-              "p-1.5 rounded-md transition-colors",
-              view === "list"
-                ? "bg-accent text-accent-contrast"
-                : "text-content-secondary hover:text-content"
-            )}
-          >
-            <List className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setView("tree")}
-            className={cn(
-              "p-1.5 rounded-md transition-colors",
-              view === "tree"
-                ? "bg-accent text-accent-contrast"
-                : "text-content-secondary hover:text-content"
-            )}
-          >
-            <Network className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-center py-12 text-content-muted">
-          Loading tasks...
-        </div>
-      ) : tasks.length === 0 && !search && statusFilter === "all" ? (
-        <PagePlaceholder
-          icon={CheckSquare}
-          title="No tasks yet"
-          description="Create a task to start tracking work on this project."
-          action={
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              New Task
-            </button>
-          }
-        />
-      ) : (
-        <div className="bg-surface border border-stroke rounded-xl overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[auto_1fr_120px_90px_90px_70px] gap-4 px-5 py-3 border-b border-stroke bg-surface-secondary text-xs font-medium text-content-muted uppercase tracking-wider">
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="hidden sm:grid grid-cols-[auto_1fr_120px_90px_90px_70px] gap-4 px-5 py-2.5 border-b border-stroke bg-surface-secondary/70 text-[11px] font-semibold text-content-muted uppercase tracking-wider">
             <div className="w-4" />
             <div>Task</div>
             <div>Status</div>
@@ -263,27 +255,39 @@ export default function ProjectTasks() {
           </div>
 
           <div className="divide-y divide-stroke-secondary">
-            {topLevel.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                children={childMap.get(task.id)}
-                onClick={() => openTask(task.id)}
-                depth={0}
-                view={view}
-                onOpenChild={openTask}
-                parentChain={view === "list" ? parentChain(task) : undefined}
-              />
-            ))}
-          </div>
-
-          {topLevel.length === 0 && (
-            <div className="px-5 py-12 text-center text-content-muted">
-              No tasks match your filters.
+              {topLevel.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  children={childMap.get(task.id)}
+                  onClick={() => openTask(task.id)}
+                  depth={0}
+                  view={view}
+                  onOpenChild={openTask}
+                  parentChain={view === "list" ? parentChain(task) : undefined}
+                />
+              ))}
             </div>
-          )}
-        </div>
-      )}
+
+            {topLevel.length === 0 && (
+              <div className="px-5 py-14 text-center">
+                <p className="text-sm text-content-secondary">
+                  No tasks match your filters.
+                </p>
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                  }}
+                  className="mt-2 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+          </Card>
+        )}
+      </PageBody>
 
       {showCreate && (
         <CreateTaskModal
@@ -314,7 +318,7 @@ export default function ProjectTasks() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -349,7 +353,7 @@ function TaskRow({
     <>
       <div
         onClick={onClick}
-        className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_120px_90px_90px_70px] gap-3 sm:gap-4 px-4 sm:px-5 py-3 items-center hover:bg-surface-hover/50 transition-colors cursor-pointer group"
+        className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_120px_90px_90px_70px] gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 items-center hover:bg-surface-hover/60 active:bg-surface-hover transition-colors cursor-pointer group"
         style={{ paddingLeft: `${20 + depth * 24}px` }}
       >
         <StatusIcon className={cn("w-4 h-4", status.className)} />
@@ -373,19 +377,41 @@ function TaskRow({
               {task.title}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-1 sm:hidden">
-            <span className={cn("text-xs font-medium", status.className)}>
+          <div className="flex items-center gap-2 mt-1.5 sm:hidden">
+            <span className={cn("text-[11px] font-semibold", status.className)}>
               {status.label}
             </span>
             {priority && (
               <span
                 className={cn(
-                  "inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium",
+                  "inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold",
                   priority.className
                 )}
               >
                 {priority.label}
               </span>
+            )}
+            {dueStr && (
+              <span
+                className={cn(
+                  "text-[11px] tabular-nums ml-auto",
+                  dueSoon ? "text-danger font-semibold" : "text-content-muted"
+                )}
+              >
+                {dueStr}
+              </span>
+            )}
+            {task.assignees?.length > 0 && (
+              <div className="flex -space-x-1">
+                {task.assignees.slice(0, 3).map((a) => (
+                  <span
+                    key={a.member_id}
+                    className="w-5 h-5 rounded-full bg-accent-soft flex items-center justify-center text-[9px] font-semibold text-accent border border-surface"
+                  >
+                    {getInitials(a)}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -433,11 +459,11 @@ function TaskRow({
         </div>
         <span
           className={cn(
-            "hidden sm:block text-sm",
+            "hidden sm:block text-sm tabular-nums",
             dueSoon ? "text-danger font-medium" : "text-content-secondary"
           )}
         >
-          {dueStr ?? ""}
+          {dueStr ?? "—"}
         </span>
       </div>
       {view === "tree" &&
@@ -489,6 +515,20 @@ function TaskDetailPanel({
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const [pendingRejectStatus, setPendingRejectStatus] = useState<TaskStatus | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+
+  // Escape closes the panel; lock the page behind it while open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = original;
+    };
+  }, [onClose]);
 
   const { user } = useAuth();
   const isAssignee = task.assignees.some((a) => a.user_id === user?.id);
@@ -654,35 +694,61 @@ function TaskDetailPanel({
   const StatusIcon = status.icon;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-end z-50">
-      <div className="bg-surface w-full max-w-xl h-full flex flex-col border-l border-stroke">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stroke bg-surface z-10 shrink-0">
-          <div className="flex items-center gap-2 text-sm text-content-muted">
-            <span className="font-mono">#{task.task_number}</span>
-            <ChevronRight className="w-3 h-3" />
-            <StatusIcon className={cn("w-4 h-4", status.className)} />
-            <span className={status.className}>{status.label}</span>
+    <div
+      className="fixed inset-0 z-50 flex sm:justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Task #${task.task_number}`}
+    >
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+      />
+      <div
+        className={cn(
+          "relative bg-surface flex flex-col w-full sm:max-w-xl shadow-xl",
+          "mt-10 sm:mt-0 h-[calc(100%-2.5rem)] sm:h-full",
+          "rounded-t-2xl sm:rounded-none sm:border-l border-stroke",
+          "animate-sheet-in sm:animate-slide-in-right"
+        )}
+      >
+        {/* Grab handle, mobile only */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <span className="w-9 h-1 rounded-full bg-stroke" />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-stroke shrink-0">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <span className="font-mono text-content-muted shrink-0">
+              #{task.task_number}
+            </span>
+            <StatusIcon className={cn("w-4 h-4 shrink-0", status.className)} />
+            <span className={cn("font-medium truncate", status.className)}>
+              {status.label}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 shrink-0">
             {canDeleteTask && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="p-1.5 rounded-md hover:bg-danger-soft text-content-muted hover:text-danger transition-colors"
+                aria-label="Delete task"
+                className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-danger-soft text-content-muted hover:text-danger transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-surface-hover text-content-muted"
+              aria-label="Close"
+              className="flex items-center justify-center w-9 h-9 -mr-1.5 rounded-lg hover:bg-surface-hover text-content-muted hover:text-content transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 flex flex-col">
-        <div className="p-6 space-y-6 shrink-0">
+        <div className="overflow-y-auto overscroll-none-touch scroll-thin flex-1 flex flex-col">
+        <div className="p-4 sm:p-6 space-y-6 shrink-0">
           {editing ? (
             <div className="space-y-3">
               <input
@@ -1037,7 +1103,7 @@ function TaskDetailPanel({
               onChange={(e) => setRejectComment(e.target.value)}
               placeholder="What needs revision..."
               rows={3}
-              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none mb-4"
+              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all resize-none mb-4"
             />
             <div className="flex justify-end gap-2">
               <button

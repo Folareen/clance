@@ -12,13 +12,11 @@ import {
   FileIcon,
   Image,
   MessageCircle,
-  Users,
-  Hash,
-  Loader2,
   X,
   CheckSquare,
 } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
+import { EmptyState, Skeleton } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { api, type SearchResults, type TaskStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -86,8 +84,10 @@ function SearchContent() {
     <div className="min-h-screen bg-surface-secondary">
       <TopBar />
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-semibold text-content mb-4">Search</h1>
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <h1 className="text-xl sm:text-2xl font-semibold text-content tracking-tight mb-4">
+          Search
+        </h1>
 
         <div className="relative mb-8">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-content-muted" />
@@ -98,7 +98,7 @@ function SearchContent() {
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
             placeholder="Search tasks, notes, chats, files, and people…"
-            className="w-full pl-12 pr-10 py-3 rounded-xl border border-stroke bg-surface text-content placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+            className="w-full h-12 pl-12 pr-10 rounded-xl border border-stroke bg-surface text-content shadow-xs placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-[border-color,box-shadow]"
           />
           {query && (
             <button
@@ -111,26 +111,36 @@ function SearchContent() {
         </div>
 
         {loading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-5 h-5 text-content-muted animate-spin" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl border border-stroke bg-surface"
+              >
+                <Skeleton className="w-4 h-4 rounded-full shrink-0" />
+                <Skeleton
+                  className="h-3.5 rounded"
+                  style={{ width: `${45 + ((i * 17) % 35)}%` }}
+                />
+              </div>
+            ))}
           </div>
         )}
 
         {!loading && noResults && (
-          <div className="text-center py-12">
-            <p className="text-sm text-content-muted">
-              No results for &ldquo;{query}&rdquo;
-            </p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="No results"
+            description={`Nothing matched "${query}". Search covers tasks, notes, chats, files, and people in your projects.`}
+          />
         )}
 
         {!loading && !hasResults && !noResults && (
-          <div className="text-center py-12">
-            <Search className="w-10 h-10 text-content-muted/40 mx-auto mb-3" />
-            <p className="text-sm text-content-muted">
-              Results are scoped to the projects you&apos;re a member of.
-            </p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="Search your projects"
+            description="Find tasks, notes, chats, files, and people, scoped to the projects you're a member of."
+          />
         )}
 
         {!loading && hasResults && (
@@ -145,7 +155,7 @@ function SearchContent() {
                     <Link
                       key={task.id}
                       href={`/app/projects/${task.project_id}/tasks`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/60 active:bg-surface-hover transition-colors group"
                     >
                       <Icon className={cn("w-4 h-4 shrink-0", cfg.className)} />
                       <span className="text-xs text-content-muted font-mono shrink-0">
@@ -246,7 +256,7 @@ function SearchContent() {
                       href={file.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/60 active:bg-surface-hover transition-colors group"
                     >
                       {isImage ? (
                         <Image className="w-4 h-4 text-info shrink-0" />
@@ -281,7 +291,7 @@ function SearchContent() {
                     <Link
                       key={`${member.id}-${member.project_id}`}
                       href={`/app/projects/${member.project_id}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/50 transition-colors group"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover/60 active:bg-surface-hover transition-colors group"
                     >
                       <div className="w-7 h-7 rounded-full bg-accent-soft flex items-center justify-center text-[10px] font-semibold text-accent shrink-0">
                         {member.email.charAt(0).toUpperCase()}

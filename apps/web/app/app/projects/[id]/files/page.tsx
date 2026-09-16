@@ -8,12 +8,20 @@ import {
   File as FileIcon,
   MessageCircle,
   CheckSquare,
-  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProject } from "@/components/project-provider";
 import { api, ApiError, type FileRecord } from "@/lib/api";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { PageHeader, PageBody } from "@/components/page-header";
+import {
+  Card,
+  Input,
+  Segmented,
+  SegmentedItem,
+  EmptyState,
+  SkeletonRows,
+  Alert,
+} from "@/components/ui";
 
 export default function ProjectFiles() {
   const { project } = useProject();
@@ -49,68 +57,57 @@ export default function ProjectFiles() {
   });
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-content">Files</h1>
-          <p className="text-content-secondary mt-1">
-            Everything attached to tasks &amp; chats you can see
-          </p>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        title="Files"
+        description="Everything attached to tasks & chats you can see"
+        toolbar={
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex-1 min-w-0 sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted pointer-events-none" />
+              <Input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search files…"
+                className="pl-9"
+              />
+            </div>
+            <Segmented className="shrink-0">
+              {(["all", "task", "message"] as const).map((t) => (
+                <SegmentedItem
+                  key={t}
+                  active={typeFilter === t}
+                  onClick={() => setTypeFilter(t)}
+                >
+                  {t === "all" ? "All" : t === "task" ? "Tasks" : "Chats"}
+                </SegmentedItem>
+              ))}
+            </Segmented>
+          </div>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search files..."
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+      <PageBody>
+        {error && <Alert className="mb-4">{error}</Alert>}
+
+        {loading ? (
+          <SkeletonRows rows={6} />
+        ) : files.length === 0 ? (
+          <EmptyState
+            icon={FileIcon}
+            title="No files yet"
+            description="Files only exist as attachments on tasks or chats. There's no separate upload."
           />
-        </div>
-        <div className="flex items-center gap-1 bg-surface border border-stroke rounded-lg p-0.5">
-          {(["all", "task", "message"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                typeFilter === t
-                  ? "bg-accent text-accent-contrast"
-                  : "text-content-secondary hover:text-content hover:bg-surface-hover"
-              )}
-            >
-              {t === "all" ? "All" : t === "task" ? "Tasks" : "Chats"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
-        </div>
-      ) : files.length === 0 ? (
-        <PagePlaceholder
-          icon={FileIcon}
-          title="No files yet"
-          description="Files only exist as attachments on tasks or chats."
-        />
-      ) : filtered.length === 0 ? (
-        <div className="px-5 py-12 text-center text-content-muted">
-          No files match your search.
-        </div>
-      ) : (
-        <div className="bg-surface border border-stroke rounded-xl overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[1fr_140px_100px_90px] gap-4 px-5 py-3 border-b border-stroke bg-surface-secondary text-xs font-medium text-content-muted uppercase tracking-wider">
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="No matches"
+            description="No files match your search or filter."
+          />
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="hidden sm:grid grid-cols-[1fr_140px_100px_90px] gap-4 px-5 py-2.5 border-b border-stroke bg-surface-secondary/70 text-[11px] font-semibold text-content-muted uppercase tracking-wider">
             <div>Name</div>
             <div>Source</div>
             <div>Size</div>
@@ -130,7 +127,7 @@ export default function ProjectFiles() {
                   href={f.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_140px_100px_90px] gap-3 sm:gap-4 px-4 sm:px-5 py-3 items-center hover:bg-surface-hover/50 transition-colors cursor-pointer group"
+                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_140px_100px_90px] gap-3 sm:gap-4 px-4 sm:px-5 py-3 items-center hover:bg-surface-hover/60 active:bg-surface-hover transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
@@ -161,25 +158,28 @@ export default function ProjectFiles() {
                       {f.attach_type === "task" ? "Task" : "Chat"}
                     </span>
                   </div>
-                  <span className="hidden sm:block text-sm text-content-secondary">
+                  <span className="hidden sm:block text-sm text-content-secondary tabular-nums">
                     {f.size ? formatFileSize(f.size) : "—"}
                   </span>
-                  <span className="hidden sm:block text-sm text-content-muted">
+                  <span className="hidden sm:block text-sm text-content-muted tabular-nums">
                     {formatDate(f.created_at)}
                   </span>
                 </a>
               );
             })}
-          </div>
-        </div>
-      )}
+            </div>
+          </Card>
+        )}
 
-      <p className="text-xs text-content-muted mt-4">
-        Files only exist as attachments on a task or chat — there&apos;s no
-        separate upload. Visibility is inherited from the task or chat they live
-        in.
-      </p>
-    </div>
+        {files.length > 0 && (
+          <p className="text-xs text-content-muted mt-4 leading-relaxed">
+            Files only exist as attachments on a task or chat. There&apos;s no
+            separate upload. Visibility is inherited from the task or chat they
+            live in.
+          </p>
+        )}
+      </PageBody>
+    </>
   );
 }
 

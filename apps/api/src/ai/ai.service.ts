@@ -158,7 +158,7 @@ export class AiService {
       ? parsed.priority
       : 'none';
 
-    // Never trust a model-returned id at face value — only accept it if it
+    // Never trust a model-returned id at face value. Only accept it if it
     // actually exists in this project's already-fetched data.
     const assigneeId = memberRows.some((m) => m.id === parsed.suggested_assignee_member_id)
       ? parsed.suggested_assignee_member_id

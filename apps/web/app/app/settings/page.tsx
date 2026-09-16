@@ -108,20 +108,22 @@ function SettingsContent() {
   return (
     <div className="min-h-screen bg-surface-secondary">
       <TopBar />
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-semibold text-content mb-1">Settings</h1>
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <h1 className="text-xl sm:text-2xl font-semibold text-content tracking-tight mb-1">
+          Settings
+        </h1>
         <p className="text-content-secondary mb-8">
           Manage your account and preferences
         </p>
 
         {/* Profile */}
-        <section className="mb-10">
-          <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
+        <section className="mb-8">
+          <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider mb-3">
             Profile
           </h2>
-          <div className="bg-surface border border-stroke rounded-xl p-6">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-2xl bg-accent flex items-center justify-center text-accent-contrast text-xl font-bold">
+          <div className="bg-surface border border-stroke rounded-xl shadow-xs p-5 sm:p-6">
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-accent flex items-center justify-center text-accent-contrast text-lg sm:text-xl font-bold shrink-0">
                 {initials(name) || "?"}
               </div>
               <div className="min-w-0">
@@ -146,8 +148,8 @@ function SettingsContent() {
         </section>
 
         {/* Notifications */}
-        <section className="mb-10">
-          <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
+        <section className="mb-8">
+          <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider mb-3">
             Notifications
           </h2>
           <div className="bg-surface border border-stroke rounded-xl divide-y divide-stroke">
@@ -197,8 +199,8 @@ function SettingsContent() {
         </section>
 
         {/* Appearance */}
-        <section className="mb-10">
-          <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
+        <section className="mb-8">
+          <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider mb-3">
             Appearance
           </h2>
           <div className="bg-surface border border-stroke rounded-xl p-6">
@@ -251,7 +253,7 @@ function SettingsContent() {
 
         {/* Account */}
         <section>
-          <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
+          <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider mb-3">
             Account
           </h2>
           <div className="bg-surface border border-stroke rounded-xl p-6">

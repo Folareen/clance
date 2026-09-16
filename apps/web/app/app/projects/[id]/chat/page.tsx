@@ -16,6 +16,7 @@ import {
   SmilePlus,
   MessageSquare,
   ChevronLeft,
+  Menu,
   Pin,
   PinOff,
 } from "lucide-react";
@@ -65,12 +66,27 @@ export default function ProjectChat() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [openThread, setOpenThread] = useState<Message | null>(null);
   const [showPinned, setShowPinned] = useState(false);
+  const [showChannels, setShowChannels] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [autocomplete, setAutocomplete] = useState<{
     kind: "mention" | "task";
     query: string;
     triggerIndex: number;
   } | null>(null);
+
+  // Mobile drawer: close on channel change, lock the page behind it.
+  useEffect(() => {
+    setShowChannels(false);
+  }, [active?.id]);
+
+  useEffect(() => {
+    if (!showChannels) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [showChannels]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -454,21 +470,50 @@ export default function ProjectChat() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
+      <div className="flex h-full min-h-0">
+        <div className="hidden lg:block w-[220px] min-w-[220px] border-r border-stroke bg-surface" />
+        <div className="flex-1 flex flex-col bg-surface-secondary">
+          <div className="h-14 border-b border-stroke bg-surface" />
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-content-muted animate-spin" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <ChatContext.Provider value={{ projectId, tasks }}>
-    <div className="flex h-screen md:h-screen">
+    <div className="flex h-full min-h-0 overflow-hidden">
+      {/* Mobile drawer backdrop */}
+      {showChannels && (
+        <div
+          className="lg:hidden fixed inset-0 z-30 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowChannels(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-[220px] min-w-[220px] hidden lg:flex flex-col border-r border-stroke bg-surface">
-        <div className="px-4 h-14 flex items-center border-b border-stroke-secondary">
+      <div
+        className={cn(
+          "flex-col border-r border-stroke bg-surface",
+          // Desktop: a fixed rail. Mobile: a slide-in drawer.
+          "hidden lg:flex w-[220px] min-w-[220px]",
+          showChannels &&
+            "!flex fixed inset-y-0 left-0 z-40 w-[80%] max-w-[300px] shadow-xl animate-slide-in-right lg:static lg:shadow-none lg:w-[220px] lg:animate-none"
+        )}
+      >
+        <div className="px-4 h-14 flex items-center border-b border-stroke-secondary shrink-0">
           <h2 className="font-semibold text-content">Chat</h2>
+          <button
+            onClick={() => setShowChannels(false)}
+            aria-label="Close channels"
+            className="lg:hidden ml-auto -mr-1.5 flex items-center justify-center w-9 h-9 rounded-lg text-content-muted active:bg-surface-hover"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-none-touch scroll-thin p-2">
           <div className="flex items-center justify-between px-2 py-1.5">
             <p className="text-[11px] font-semibold text-content-muted uppercase tracking-wider flex items-center gap-1.5">
               <Hash className="w-3 h-3" /> Channels
@@ -557,45 +602,60 @@ export default function ProjectChat() {
 
       {/* Messages */}
       <div className="flex-1 flex flex-col bg-surface-secondary">
-        <div className="flex items-center gap-2 px-6 h-14 border-b border-stroke bg-surface">
+        <div className="flex items-center gap-2 px-3 sm:px-6 h-14 border-b border-stroke bg-surface shrink-0">
+          <button
+            onClick={() => setShowChannels(true)}
+            aria-label="Channels"
+            className="lg:hidden flex items-center justify-center w-9 h-9 -ml-1 shrink-0 rounded-lg text-content-secondary active:bg-surface-hover"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {active?.kind === "group" ? (
-            <Hash className="w-4 h-4 text-content-muted" />
+            <Hash className="w-4 h-4 text-content-muted shrink-0" />
           ) : (
-            <MessageCircle className="w-4 h-4 text-content-muted" />
+            <MessageCircle className="w-4 h-4 text-content-muted shrink-0" />
           )}
-          <h3 className="font-semibold text-content">
+          <h3 className="font-semibold text-content truncate min-w-0">
             {active ? channelDisplayName(active) : "Select a channel"}
           </h3>
+          {!connected && (
+            <span className="hidden sm:inline text-xs text-warning shrink-0">
+              Connecting…
+            </span>
+          )}
           <button
             onClick={() => {
               setOpenThread(null);
               setShowPinned((v) => !v);
             }}
             className={cn(
-              "ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors",
+              "ml-auto shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 h-8 rounded-lg transition-colors",
               showPinned
                 ? "bg-accent-soft text-accent"
                 : "text-content-secondary hover:bg-surface-hover hover:text-content"
             )}
           >
             <Pin className="w-3.5 h-3.5" />
-            Pinned
+            <span className="hidden sm:inline">Pinned</span>
           </button>
-          {!connected && (
-            <span className="text-xs text-warning">Connecting...</span>
-          )}
         </div>
 
-        <div ref={messagesScrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+        <div
+          ref={messagesScrollRef}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-none-touch scroll-thin px-3 sm:px-6 py-4 space-y-4"
+        >
           {msgLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-5 h-5 text-content-muted animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-content-muted">
-              <MessageCircle className="w-10 h-10 mb-3 opacity-40" />
-              <p className="text-sm">
-                No messages yet. Start the conversation!
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <div className="w-12 h-12 rounded-2xl bg-surface-hover flex items-center justify-center mb-4">
+                <MessageCircle className="w-5 h-5 text-content-muted" />
+              </div>
+              <p className="text-sm font-semibold text-content">No messages yet</p>
+              <p className="text-sm text-content-secondary mt-1">
+                Start the conversation. Tag a task with # to link it.
               </p>
             </div>
           ) : (
@@ -644,9 +704,9 @@ export default function ProjectChat() {
         </div>
 
         {active && (
-          <div className="px-4 sm:px-6 py-4 border-t border-stroke bg-surface relative">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-stroke bg-surface relative shrink-0">
             {autocomplete && (mentionMatches.length > 0 || taskMatches.length > 0) && (
-              <div className="absolute bottom-full left-4 sm:left-6 mb-2 w-72 bg-surface border border-stroke rounded-xl shadow-md overflow-hidden">
+              <div className="absolute bottom-full left-3 sm:left-6 right-3 sm:right-auto mb-2 sm:w-72 bg-surface border border-stroke rounded-xl shadow-lg overflow-hidden animate-fade-down z-10">
                 {autocomplete.kind === "mention"
                   ? mentionMatches.map((m) => (
                       <button
@@ -705,7 +765,7 @@ export default function ProjectChat() {
                 }}
                 placeholder={`Message ${active.kind === "group" ? "#" : ""}${channelDisplayName(active)}...`}
                 rows={1}
-                className="flex-1 min-w-0 px-4 py-2.5 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none"
+                className="flex-1 min-w-0 px-4 py-2.5 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all resize-none"
               />
               <button
                 onClick={handleSend}
@@ -1060,24 +1120,31 @@ function ThreadPanel({
   };
 
   return (
-    <div className="w-90 min-w-90 hidden md:flex flex-col border-l border-stroke bg-surface">
+    <div className={cn(
+      "flex flex-col border-l border-stroke bg-surface",
+      // Desktop: a rail beside the messages. Mobile: a full-height sheet.
+      "fixed inset-0 z-40 animate-fade-in",
+      "lg:static lg:z-auto lg:w-[360px] lg:min-w-[360px] lg:animate-none"
+    )}>
       <div className="flex items-center gap-2 px-4 h-14 border-b border-stroke-secondary shrink-0">
         <button
           onClick={onClose}
-          className="text-content-muted hover:text-content transition-colors"
+          aria-label="Back"
+          className="-ml-1.5 flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <h3 className="font-semibold text-content text-sm">Thread</h3>
         <button
           onClick={onClose}
-          className="ml-auto text-content-muted hover:text-content transition-colors"
+          aria-label="Close"
+          className="ml-auto -mr-1.5 flex items-center justify-center w-9 h-9 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-none-touch scroll-thin px-4 py-4 space-y-4">
         <MessageBubble
           msg={parent}
           isMine={parent.sender_id === currentUserId}
@@ -1124,7 +1191,7 @@ function ThreadPanel({
             }}
             placeholder="Reply in thread..."
             rows={1}
-            className="flex-1 min-w-0 px-3.5 py-2 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none"
+            className="flex-1 min-w-0 px-3.5 py-2 rounded-xl border border-stroke bg-surface-secondary text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all resize-none"
           />
           <button
             onClick={handleSendReply}
@@ -1189,19 +1256,25 @@ function PinnedPanel({
   }, [load]);
 
   return (
-    <div className="w-90 min-w-90 hidden md:flex flex-col border-l border-stroke bg-surface">
+    <div className={cn(
+      "flex flex-col border-l border-stroke bg-surface",
+      // Desktop: a rail beside the messages. Mobile: a full-height sheet.
+      "fixed inset-0 z-40 animate-fade-in",
+      "lg:static lg:z-auto lg:w-[360px] lg:min-w-[360px] lg:animate-none"
+    )}>
       <div className="flex items-center gap-2 px-4 h-14 border-b border-stroke-secondary shrink-0">
         <Pin className="w-4 h-4 text-accent" />
         <h3 className="font-semibold text-content text-sm">Pinned decisions</h3>
         <button
           onClick={onClose}
-          className="ml-auto text-content-muted hover:text-content transition-colors"
+          aria-label="Close"
+          className="ml-auto -mr-1.5 flex items-center justify-center w-9 h-9 rounded-lg text-content-muted hover:text-content hover:bg-surface-hover transition-colors"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-none-touch scroll-thin px-4 py-4 space-y-4">
         {loading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="w-5 h-5 text-content-muted animate-spin" />

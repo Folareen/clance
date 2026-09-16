@@ -276,7 +276,7 @@ export class FileService {
   /**
    * Deletes the Cloudinary assets for every file under a project before the
    * project row is deleted. The `files` DB rows cascade-delete via FK, but
-   * Cloudinary storage does not — call this first or the blobs leak forever.
+   * Cloudinary storage does not, so call this first or the blobs leak forever.
    */
   async removeAllForProject(project_id: string) {
     const rows = await this.db

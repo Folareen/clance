@@ -20,16 +20,17 @@ import {
   UserPlus,
   Zap,
   FileText,
+  Lock,
+  ShieldCheck,
+  GitBranch,
+  Inbox,
+  Wand2,
 } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
-
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-accent">
-      {children}
-    </span>
-  );
-}
+import { Reveal } from "@/components/reveal";
+import { AssistantDemo } from "@/components/assistant-demo";
+import { RoleTabs } from "@/components/role-tabs";
+import { Faq } from "@/components/faq";
 
 function TaskMockup() {
   const rows = [
@@ -90,7 +91,7 @@ function TaskMockup() {
             </p>
             <p className="text-content">
               <span className="font-semibold">Priya</span>
-              <span className="text-content-secondary"> approved — nice work.</span>
+              <span className="text-content-secondary"> approved it, nice work.</span>
             </p>
           </div>
         </div>
@@ -101,7 +102,7 @@ function TaskMockup() {
 
 function ChatMockup() {
   return (
-    <div className="rounded-2xl border border-stroke bg-surface shadow-xl overflow-hidden p-5">
+    <div className="rounded-2xl bg-surface shadow-xl overflow-hidden p-5">
       <div className="flex items-start gap-2 rounded-lg bg-accent-soft px-3 py-2.5 text-sm text-accent mb-3">
         <Pin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>Pinned as decision: ship date moved to Friday</span>
@@ -114,7 +115,7 @@ function ChatMockup() {
           <div className="text-sm">
             <p>
               <span className="font-semibold text-content">Sam</span>
-              <span className="text-content-secondary"> — pushed the fix, tagged </span>
+              <span className="text-content-secondary"> pushed the fix and tagged </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-stroke bg-surface-secondary text-content font-mono text-xs align-middle">
                 #12 Fix onboarding empty state
               </span>
@@ -128,7 +129,7 @@ function ChatMockup() {
           <div className="text-sm">
             <p>
               <span className="font-semibold text-content">Priya</span>
-              <span className="text-content-secondary"> — approved, nice work.</span>
+              <span className="text-content-secondary"> approved it, nice work.</span>
             </p>
           </div>
         </div>
@@ -144,7 +145,7 @@ function FilesMockup() {
     { name: "call-recording-jun24.m4a", from: "#9 Kickoff call notes", kind: "task" },
   ];
   return (
-    <div className="rounded-2xl border border-stroke bg-surface shadow-xl overflow-hidden">
+    <div className="rounded-2xl bg-surface shadow-xl overflow-hidden">
       <div className="flex items-center gap-2 px-5 h-11 border-b border-stroke">
         <FileText className="w-4 h-4 text-content-muted" />
         <span className="text-sm font-semibold text-content">All Files</span>
@@ -175,7 +176,7 @@ const PROBLEMS = [
   {
     icon: UserCheck,
     title: "No one owns approval",
-    body: "Work gets marked “done” in a group chat, and three people find out three different ways — if they find out at all.",
+    body: "Work gets marked “done” in a group chat, and three people find out three different ways, if they find out at all.",
   },
   {
     icon: FolderX,
@@ -191,29 +192,106 @@ const GRID_FEATURES = [
     body: "Workers see what's next and what needs revision. Managers see what's blocked, overdue, and awaiting approval. Same project, different glance.",
   },
   {
-    icon: Sparkles,
-    title: "An AI assistant that knows its place",
-    body: "Read-only Q&A over your real project data, plus manager-only task drafts that need a human to confirm. It will never auto-create.",
-  },
-  {
     icon: Video,
     title: "Meetings, logged where the work happens",
-    body: "Log a meeting with your own call link, notes, and time — tied back to a task, searchable in the activity feed.",
+    body: "Log a meeting with your own call link, notes, and time, tied back to a task and searchable in the activity feed.",
   },
   {
     icon: Bell,
     title: "Notifications that reach you",
-    body: "In-app, push, and email, with PWA support — so push works without a native app.",
+    body: "In-app, push, and email, with PWA support, so push works without a native app.",
   },
   {
     icon: Search,
     title: "Search that respects access",
-    body: "One search across tasks, chat, and files — scoped to what you can already see, nothing more.",
+    body: "One search across tasks, chat, and files, scoped to what you can already see and nothing more.",
   },
   {
     icon: Activity,
     title: "An activity log underneath it all",
     body: "Every approval, pin, and invite recorded automatically, so nobody has to ask “wait, what happened here?”",
+  },
+  {
+    icon: FileText,
+    title: "Notes for the things that aren't tasks",
+    body: "A project-scoped scratchpad for context and decisions. Pin the ones that matter so they stay at the top.",
+  },
+];
+
+const ASSISTANT_POINTS = [
+  {
+    icon: Inbox,
+    title: "Answers from your project, not the internet",
+    body: "Ask what's overdue, what's assigned to you, what hasn't been submitted, or what a long thread concluded. It answers from your own tasks and chat.",
+  },
+  {
+    icon: Lock,
+    title: "Read-only by default",
+    body: "Q&A can look at everything you can already see, and change nothing. It has no power to edit, assign, approve, or delete.",
+  },
+  {
+    icon: Wand2,
+    title: "Drafts a task, never creates one",
+    body: "Managers can describe work in a sentence and get a structured draft: title, assignee, priority, parent. You review and confirm before it exists.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Scoped to your access",
+    body: "It reads exactly what your role can see in that project, and nothing from projects you're not a member of.",
+  },
+];
+
+const ROLE_VIEWS = {
+  worker: {
+    label: "Worker",
+    blurb: "You see what's yours and what's next, nothing you have to filter.",
+    items: [
+      "My pending tasks, ordered by due date and priority",
+      "Anything bounced back to you for revision",
+      "Recent activity on work you're assigned to",
+      "Submit or mark done without opening the task",
+    ],
+  },
+  manager: {
+    label: "Manager",
+    blurb: "You see the shape of the project and where it's stuck.",
+    items: [
+      "Overall progress, approved against total",
+      "Everything awaiting your approval",
+      "What's blocked or overdue, and who it's blocked on",
+      "Approve, or reject with a comment, in one place",
+    ],
+  },
+};
+
+const FAQS = [
+  {
+    q: "Is it really free?",
+    a: "Yes. It's free forever, with unlimited projects, tasks and members. There's no trial clock, no seat cap, and no credit card at signup. Every feature on this page is included.",
+  },
+  {
+    q: "Is there a workspace or org layer to set up first?",
+    a: "No. A project is the only top-level thing you create, and it holds its own people, tasks, chat, notes, files, and activity log. There's nothing to configure above it.",
+  },
+  {
+    q: "Can someone be a manager on one project and a worker on another?",
+    a: "Yes. Roles are scoped per project, so the same person can manage one project and deliver work on another. A project can also have multiple managers, with no hierarchy between them.",
+  },
+  {
+    q: "How do approvals work with more than one manager?",
+    a: "Any manager can approve a task, and the first approval stands. A parent task can only be approved once all of its subtasks are approved.",
+  },
+  {
+    q: "What happens to someone's tasks when they're removed?",
+    a: "Their assigned tasks fall back to unassigned and stay open for anyone on the project to pick up, so nothing quietly disappears with them.",
+  },
+  {
+    q: "Do invited people need an account first?",
+    a: "No. A manager invites by email with a starting role; if there's no account yet, accepting the invite creates one and drops them straight into the project. Profile details can wait.",
+  },
+  {
+    q: "Where do files live?",
+    a: "Only as attachments on a task or a chat message. There's no separate upload flow or permission matrix. Visibility is inherited from that task or chat, and All Files aggregates everything you personally have access to.",
   },
 ];
 
@@ -226,12 +304,12 @@ const STEPS = [
   {
     icon: UserPlus,
     title: "Invite by email",
-    body: "No account yet? Accepting the invite creates one automatically — no gate, no setup wizard before they can start working.",
+    body: "No account yet? Accepting the invite creates one automatically, with no gate and no setup wizard before they can start working.",
   },
   {
     icon: Zap,
     title: "Work happens here",
-    body: "Assign tasks, chat about them, attach files, and approve — all without leaving the project.",
+    body: "Assign tasks, chat about them, attach files, and approve, all without leaving the project.",
   },
 ];
 
@@ -251,51 +329,83 @@ export default function LandingPage() {
             backgroundSize: "32px 32px",
           }}
         />
+        {/* Accent glow behind the hero copy. Two orbs on offset paths so the
+            drift never visibly loops; each wrapper owns the position and the
+            child owns the motion, keeping the transform off the layout. */}
+        <div
+          aria-hidden
+          className="absolute -top-20 left-1/4 w-[600px] h-[400px] max-w-full pointer-events-none"
+        >
+          <div
+            className="w-full h-full rounded-full animate-drift-a"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(124,58,237,0.35), transparent 70%)",
+              filter: "blur(80px)",
+            }}
+          />
+        </div>
+        <div
+          aria-hidden
+          className="absolute top-10 left-[45%] w-[460px] h-[340px] max-w-full pointer-events-none"
+        >
+          <div
+            className="w-full h-full rounded-full animate-drift-b"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(99,102,241,0.28), transparent 70%)",
+              filter: "blur(90px)",
+            }}
+          />
+        </div>
         <div className="relative max-w-6xl mx-auto px-5 sm:px-6 pt-16 sm:pt-24 pb-20 sm:pb-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 border border-white/15 rounded-full px-3 py-1 mb-6">
+            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/80 border border-white/15 bg-white/[0.04] rounded-full pl-2.5 pr-3 py-1 mb-6 animate-fade-down">
+              <span className="inline-flex items-center gap-1 text-accent font-semibold">
+                <Sparkles className="w-3 h-3" />
+                Free forever
+              </span>
+              <span className="w-px h-3 bg-white/15" />
               For contract, freelance &amp; lean teams
             </span>
-            <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5">
+            <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5 animate-fade-up">
               One project-shaped home for how freelance teams actually work
             </h1>
-            <p className="text-lg text-white/60 leading-relaxed mb-8 max-w-xl">
-              Tasks, chat, notes, files, and approvals, together in one project.
-              Clance replaces the PM tool, the WhatsApp group, the shared Doc, and
-              the Slack workspace you&apos;ve stitched together to make it work.
+            <p className="text-lg text-white/60 leading-relaxed mb-8 max-w-lg animate-fade-up delay-2">
+              Tasks, chat, notes, files and approvals in one project, so nothing
+              lives in a place only one person remembers.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 animate-fade-up delay-4">
               <Link
                 href="/signup"
-                className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-5 py-3 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-5 py-3 rounded-lg transition-colors press group"
               >
                 Get started free
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
                 href="/login"
-                className="flex items-center gap-2 border border-white/15 hover:bg-white/10 text-white font-medium px-5 py-3 rounded-lg transition-colors"
+                className="flex items-center gap-2 border border-white/15 hover:bg-white/10 text-white font-medium px-5 py-3 rounded-lg transition-colors press"
               >
                 Sign in
               </Link>
             </div>
-            <p className="text-sm text-white/40 mt-4">
-              Set up your first project in under a minute.
+            <p className="text-sm text-white/40 mt-4 animate-fade-up delay-5">
+              Free forever · no credit card required.
             </p>
           </div>
 
-          <div className="mt-14 sm:mt-16">
+          <div className="mt-14 sm:mt-16 animate-fade-up delay-6">
             <TaskMockup />
           </div>
         </div>
       </section>
 
       {/* Problem */}
-      <section className="bg-surface-secondary border-b border-stroke">
+      <section className="bg-surface-secondary">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
-          <div className="max-w-2xl mb-12">
-            <Eyebrow>The problem</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3 mb-4">
+          <Reveal className="max-w-2xl mb-12">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
               Your project already has five owners
             </h2>
             <p className="text-content-secondary text-lg leading-relaxed">
@@ -303,12 +413,13 @@ export default function LandingPage() {
               three DMs deep. By the time the work is done, nobody agrees on what
               actually happened.
             </p>
-          </div>
+          </Reveal>
           <div className="grid sm:grid-cols-3 gap-5">
-            {PROBLEMS.map((p) => (
-              <div
+            {PROBLEMS.map((p, i) => (
+              <Reveal
                 key={p.title}
-                className="bg-surface border border-stroke rounded-xl p-6"
+                delay={i * 90}
+                className="rounded-2xl bg-surface p-6"
               >
                 <div className="w-10 h-10 rounded-lg bg-danger-soft flex items-center justify-center mb-4">
                   <p.icon className="w-5 h-5 text-danger" />
@@ -317,7 +428,7 @@ export default function LandingPage() {
                 <p className="text-sm text-content-secondary leading-relaxed">
                   {p.body}
                 </p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -326,16 +437,15 @@ export default function LandingPage() {
       {/* Feature: Tasks */}
       <section id="features" className="scroll-mt-16">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="min-w-0">
-            <Eyebrow>Tasks &amp; approvals</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3 mb-5">
+          <Reveal kind="left" className="min-w-0">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
               A task system built for real accountability
             </h2>
             <ul className="space-y-4">
               {[
-                "Unlimited nested subtasks — no separate “milestone” object to maintain",
+                "Unlimited nested subtasks, with no separate “milestone” object to maintain",
                 "Multiple assignees per task; anyone assigned can submit it",
-                "Any manager can approve — first approval stands, no waiting on a hierarchy",
+                "Any manager can approve, and the first approval stands, so nobody waits on a hierarchy",
                 "Rejected work bounces back to in-progress with a comment, not a vague DM",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
@@ -344,9 +454,9 @@ export default function LandingPage() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-stroke bg-surface-secondary/50 p-6">
-            <div className="rounded-xl border border-stroke bg-surface p-5 shadow-lg">
+          </Reveal>
+          <Reveal kind="right" delay={120} className="min-w-0 rounded-2xl bg-surface-secondary p-6">
+            <div className="rounded-xl bg-surface p-5 shadow-lg">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-2 mb-4">
                 {[
                   { label: "Unassigned", cls: "bg-surface-active text-content-muted" },
@@ -382,26 +492,25 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Feature: Chat */}
-      <section className="bg-surface-secondary border-y border-stroke">
+      <section className="bg-surface-secondary">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="min-w-0 order-2 lg:order-1">
+          <Reveal kind="left" className="min-w-0 order-2 lg:order-1">
             <ChatMockup />
-          </div>
-          <div className="min-w-0 order-1 lg:order-2">
-            <Eyebrow>Chat</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3 mb-5">
+          </Reveal>
+          <Reveal kind="right" delay={120} className="min-w-0 order-1 lg:order-2">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
               One messaging engine for group chat, DMs, and task comments
             </h2>
             <ul className="space-y-4">
               {[
                 "Threads, replies, reactions, and @mentions that actually notify",
                 "Tag a task in a message and it renders as a live preview, not plain text",
-                "Pin any message as a decision — it's logged, not lost in scroll",
+                "Pin any message as a decision so it's logged, not lost in scroll",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
@@ -409,21 +518,20 @@ export default function LandingPage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Feature: Files */}
       <section>
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="min-w-0">
-            <Eyebrow>Files</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3 mb-5">
+          <Reveal kind="left" className="min-w-0">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
               Files don&apos;t need their own app
             </h2>
             <ul className="space-y-4">
               {[
-                "No separate upload flow, no permission matrix — attachments live on the task or chat they belong to",
+                "No separate upload flow and no permission matrix. Attachments live on the task or chat they belong to",
                 "Visibility inherits automatically from who's already in that thread",
                 "“All Files” pulls every attachment you personally have access to onto one screen",
               ].map((item) => (
@@ -433,79 +541,160 @@ export default function LandingPage() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="min-w-0">
+          </Reveal>
+          <Reveal kind="right" delay={120} className="min-w-0">
             <FilesMockup />
+          </Reveal>
+        </div>
+      </section>
+
+
+      {/* Feature: AI Assistant */}
+      <section id="assistant" className="scroll-mt-16 bg-surface-secondary">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
+          <Reveal className="max-w-2xl mb-12">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent mb-4">
+              <Sparkles className="w-3.5 h-3.5" />
+              AI assistant
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
+              An assistant that knows its place
+            </h2>
+            <p className="text-content-secondary text-lg leading-relaxed">
+              Most tools bolt on an AI that happily invents work and reassigns
+              your team. Clance&apos;s reads your project and answers questions,
+              and when it drafts a task, a human still has to say yes.
+            </p>
+          </Reveal>
+
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-start">
+            <Reveal kind="left">
+              <AssistantDemo />
+            </Reveal>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-5">
+              {ASSISTANT_POINTS.map((point, i) => (
+                <Reveal
+                  key={point.title}
+                  kind="right"
+                  delay={i * 90}
+                  className="flex items-start gap-3.5"
+                >
+                  <span className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
+                    <point.icon className="w-4 h-4 text-accent" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-content mb-1">
+                      {point.title}
+                    </h3>
+                    <p className="text-sm text-content-secondary leading-relaxed">
+                      {point.body}
+                    </p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Grid features */}
-      <section className="bg-surface-secondary border-y border-stroke">
+      <section>
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
-          <div className="max-w-2xl mb-12">
-            <Eyebrow>And the rest</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3">
+          <Reveal className="max-w-2xl mb-12">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
               Everything else your project needs
             </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {GRID_FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="bg-surface border border-stroke rounded-xl p-6"
-              >
-                <div className="w-10 h-10 rounded-lg bg-accent-soft flex items-center justify-center mb-4">
-                  <f.icon className="w-5 h-5 text-accent" />
-                </div>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
+            {GRID_FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={(i % 3) * 90}>
+                <f.icon className="w-5 h-5 text-accent mb-3" />
                 <h3 className="font-semibold text-content mb-1.5">{f.title}</h3>
                 <p className="text-sm text-content-secondary leading-relaxed">
                   {f.body}
                 </p>
-              </div>
+              </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+
+      {/* Role-aware dashboards */}
+      <section id="dashboards" className="scroll-mt-16 bg-surface-secondary">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <Reveal kind="left" className="min-w-0">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
+              The same project, seen two ways
+            </h2>
+            <p className="text-content-secondary text-lg leading-relaxed mb-5">
+              A worker opening a project shouldn&apos;t have to dig past twelve
+              charts to find the two things they owe someone. A manager
+              shouldn&apos;t have to guess who a task is stuck on.
+            </p>
+            <p className="text-content-secondary leading-relaxed">
+              Your role decides the glance view. No dashboard builder, no
+              widget library, no setup.
+            </p>
+          </Reveal>
+          <Reveal kind="right" delay={120} className="min-w-0">
+            <RoleTabs worker={ROLE_VIEWS.worker} manager={ROLE_VIEWS.manager} />
+          </Reveal>
         </div>
       </section>
 
       {/* How it works */}
       <section id="how-it-works" className="scroll-mt-16">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
-          <div className="max-w-2xl mb-14">
-            <Eyebrow>Getting started</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mt-3">
+          <Reveal className="max-w-2xl mb-14">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
               Up and running in three steps
             </h2>
-          </div>
+          </Reveal>
           <div className="grid sm:grid-cols-3 gap-8 sm:gap-10">
             {STEPS.map((s, i) => (
-              <div key={s.title} className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
-                    <s.icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-content-muted font-mono text-sm">
+              <Reveal key={s.title} delay={i * 110} className="relative">
+                <div className="flex items-baseline gap-3 mb-3">
+                  <span className="text-2xl font-semibold text-accent tabular-nums">
                     0{i + 1}
                   </span>
+                  <s.icon className="w-4 h-4 text-content-muted shrink-0" />
                 </div>
                 <h3 className="font-semibold text-content text-lg mb-1.5">
                   {s.title}
                 </h3>
                 <p className="text-content-secondary leading-relaxed">{s.body}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
+
+      {/* FAQ */}
+      <section id="faq" className="scroll-mt-16 bg-surface-secondary">
+        <div className="max-w-3xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
+          <Reveal className="mb-10">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
+              Questions worth asking first
+            </h2>
+          </Reveal>
+          <Reveal delay={80}>
+            <Faq items={FAQS} />
+          </Reveal>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="bg-nav-bg">
-        <div className="max-w-4xl mx-auto px-5 sm:px-6 py-20 sm:py-24 text-center">
+        <Reveal className="max-w-4xl mx-auto px-5 sm:px-6 py-20 sm:py-24 text-center">
           <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
             Give your project one home, instead of five apps
           </h2>
           <p className="text-white/60 text-lg mb-8 max-w-xl mx-auto">
-            Free to get started. Set up your first project in under a minute.
+            Free forever, with unlimited projects, tasks and members. No credit
+            card, no trial clock.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -522,7 +711,7 @@ export default function LandingPage() {
               Sign in
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
@@ -552,8 +741,17 @@ export default function LandingPage() {
                   <a href="#features" className="text-content-secondary hover:text-content transition-colors">
                     Features
                   </a>
+                  <a href="#assistant" className="text-content-secondary hover:text-content transition-colors">
+                    AI assistant
+                  </a>
+                  <a href="#dashboards" className="text-content-secondary hover:text-content transition-colors">
+                    Dashboards
+                  </a>
                   <a href="#how-it-works" className="text-content-secondary hover:text-content transition-colors">
                     How it works
+                  </a>
+                  <a href="#faq" className="text-content-secondary hover:text-content transition-colors">
+                    FAQ
                   </a>
                 </div>
               </div>

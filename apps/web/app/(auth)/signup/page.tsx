@@ -51,7 +51,7 @@ export default function SignupPage() {
             Start running your projects the simple way.
           </h1>
           <p className="text-white/50 text-lg max-w-md leading-relaxed">
-            People, tasks, chat, notes, and files — one home per project. No
+            People, tasks, chat, notes, and files, all in one home per project. No
             tool-juggling.
           </p>
         </div>
@@ -80,7 +80,7 @@ export default function SignupPage() {
               Create your account
             </h2>
             <p className="text-content-secondary mb-8">
-              Free to start. No credit card required.
+              Free forever. No credit card required.
             </p>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -101,7 +101,7 @@ export default function SignupPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Saka Wahab"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-stroke bg-surface text-content placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-stroke bg-surface text-content placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all"
                   />
                 </div>
               </div>
@@ -118,7 +118,7 @@ export default function SignupPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-stroke bg-surface text-content placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-stroke bg-surface text-content placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all"
                   />
                 </div>
               </div>

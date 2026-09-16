@@ -7,7 +7,8 @@ import { useProject } from "@/components/project-provider";
 import { api, ApiError, type Note } from "@/lib/api";
 import { TiptapEditor, TiptapViewer } from "@/components/tiptap-editor";
 import { ConfirmModal } from "@/components/confirm-modal";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { PageHeader, PageBody, SectionLabel } from "@/components/page-header";
+import { Button, EmptyState, SkeletonCards, Alert } from "@/components/ui";
 import { toast } from "@/components/toast";
 
 export default function ProjectNotes() {
@@ -81,56 +82,44 @@ export default function ProjectNotes() {
   const rest = notes.filter((n) => !n.pinned);
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-content">Notes</h1>
-          <p className="text-content-secondary mt-1">
-            Project scratchpad &amp; decisions
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Note
-        </button>
-      </div>
+    <>
+      <PageHeader
+        title="Notes"
+        description="Project scratchpad & decisions"
+        actions={
+          <Button icon={Plus} onClick={() => setShowCreate(true)}>
+            <span className="hidden sm:inline">New note</span>
+            <span className="sm:hidden">New</span>
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-          {error}
-        </div>
-      )}
+      <PageBody>
+        {error && <Alert className="mb-4">{error}</Alert>}
 
-      {loading ? (
-        <div className="text-center py-12 text-content-muted">
-          Loading notes...
-        </div>
-      ) : notes.length === 0 ? (
-        <PagePlaceholder
-          icon={FileText}
-          title="No notes yet"
-          description="Create a note to start documenting decisions and ideas."
-          action={
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              New Note
-            </button>
-          }
-        />
-      ) : (
-        <>
+        {loading ? (
+          <SkeletonCards count={4} />
+        ) : notes.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No notes yet"
+            description="Create a note to start documenting decisions and ideas."
+            action={
+              <Button icon={Plus} onClick={() => setShowCreate(true)}>
+                New note
+              </Button>
+            }
+          />
+        ) : (
+          <>
           {pinned.length > 0 && (
-            <>
-              <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Pin className="w-3.5 h-3.5" /> Pinned
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+            <div className="mb-8">
+              <SectionLabel>
+                <span className="flex items-center gap-1.5">
+                  <Pin className="w-3 h-3" /> Pinned
+                </span>
+              </SectionLabel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {pinned.map((n) => (
                   <NoteCard
                     key={n.id}
@@ -139,24 +128,23 @@ export default function ProjectNotes() {
                   />
                 ))}
               </div>
-            </>
+            </div>
           )}
 
-          <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-3">
-            All notes
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {rest.map((n) => (
-              <NoteCard
-                key={n.id}
-                note={n}
-                onClick={() => openNote(n.id)}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+          {rest.length > 0 && (
+            <div>
+              <SectionLabel>All notes</SectionLabel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {rest.map((n) => (
+                  <NoteCard key={n.id} note={n} onClick={() => openNote(n.id)} />
+                ))}
+              </div>
+            </div>
+          )}
+          </>
+        )}
+      </PageBody>
+    </>
   );
 }
 
@@ -177,7 +165,7 @@ function NoteCard({ note, onClick }: { note: Note; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
-      className="group bg-surface border border-stroke rounded-xl p-5 hover:border-accent/40 transition-colors cursor-pointer"
+      className="group bg-surface border border-stroke rounded-xl shadow-xs p-5 hover-lift hover:border-accent/40 cursor-pointer"
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -286,7 +274,7 @@ function NoteEditor({
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
@@ -299,7 +287,7 @@ function NoteEditor({
           <button
             onClick={togglePin}
             className={cn(
-              "p-2 rounded-lg transition-colors",
+              "flex items-center justify-center w-9 h-9 rounded-lg transition-colors",
               pinned
                 ? "text-accent bg-accent-soft"
                 : "text-content-muted hover:text-content hover:bg-surface-hover"

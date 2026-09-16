@@ -19,7 +19,7 @@ class ProviderError extends Error {
   }
 }
 
-// Google deprecates model names aggressively — if Gemini starts 404ing,
+// Google deprecates model names aggressively. If Gemini starts 404ing,
 // check `GET /v1beta/models?key=...` for the current lineup before assuming
 // the key is broken.
 const GEMINI_MODEL = 'gemini-3.6-flash';
@@ -115,7 +115,7 @@ export class LlmProviderService {
     return text;
   }
 
-  /** Only fall back to Groq for rate-limit/capacity failures — anything else
+  /** Only fall back to Groq for rate-limit/capacity failures. Anything else
    *  (e.g. a malformed request) is a bug that Groq would hit too, so surface it. */
   private isRetryable(err: unknown): boolean {
     if (!(err instanceof ProviderError)) return false;

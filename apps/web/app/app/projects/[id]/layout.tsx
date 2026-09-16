@@ -1,19 +1,34 @@
 "use client";
 
 import { use } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { ProjectNav } from "@/components/project-nav";
+import { ArrowLeft } from "lucide-react";
+import { ProjectNav, MobileTopBar } from "@/components/project-nav";
 import { RequireAuth } from "@/components/require-auth";
 import { ProjectProvider, useProject } from "@/components/project-provider";
+import { Skeleton, SkeletonRows, Button } from "@/components/ui";
 
 function ProjectShell({ children }: { children: React.ReactNode }) {
   const { project, status, error } = useProject();
+  const pathname = usePathname();
+
+  // Chat owns its own scroll regions (message list, thread, channel rail), so
+  // the shell must not add another scroll container around it.
+  const selfScrolling = pathname.endsWith("/chat");
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center h-screen bg-surface-secondary">
-        <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
+      <div className="flex h-screen bg-surface-secondary">
+        <div className="hidden lg:flex flex-col w-60 min-w-60 bg-nav-bg" />
+        <div className="flex-1 min-w-0">
+          <div className="h-14 bg-nav-bg lg:hidden" />
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            <Skeleton className="h-7 w-48 rounded-lg" />
+            <Skeleton className="h-4 w-72 rounded" />
+            <SkeletonRows rows={5} className="mt-6" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -25,12 +40,8 @@ function ProjectShell({ children }: { children: React.ReactNode }) {
         <p className="text-content-secondary mt-1.5 max-w-sm">
           It may have been deleted, or you don&apos;t have access to it.
         </p>
-        <Link
-          href="/app"
-          className="mt-5 inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to projects
+        <Link href="/app" className="mt-5">
+          <Button icon={ArrowLeft}>Back to projects</Button>
         </Link>
       </div>
     );
@@ -45,9 +56,20 @@ function ProjectShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-surface-secondary">
+    <div className="flex h-screen overflow-hidden bg-surface-secondary">
       <ProjectNav project={project} />
-      <main className="flex-1 overflow-auto pb-16 md:pb-0">{children}</main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <MobileTopBar project={project} />
+        <main
+          className={
+            selfScrolling
+              ? "flex-1 min-h-0 overflow-hidden pb-bottom-nav lg:pb-0"
+              : "flex-1 overflow-y-auto overscroll-none-touch scroll-thin pb-bottom-nav lg:pb-0"
+          }
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

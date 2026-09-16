@@ -11,6 +11,7 @@ import {
   Check,
 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
+import { PageHeader, PageBody } from "@/components/page-header";
 import { useAuth } from "@/components/auth-provider";
 import { api, ApiError, type Member, type Role } from "@/lib/api";
 import { memberDisplayName } from "@/lib/display";
@@ -27,14 +28,13 @@ export default function ProjectSettings() {
   const isManager = me?.role === "manager";
 
   return (
-    <div className="p-6 sm:p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-semibold text-content mb-1">
-        Project settings
-      </h1>
-      <p className="text-content-secondary mb-8">
-        Manage {project.name}&apos;s details, members, and access
-      </p>
+    <>
+      <PageHeader
+        title="Project settings"
+        description={`Manage ${project.name}'s details, members, and access`}
+      />
 
+      <PageBody className="max-w-3xl space-y-8">
       <GeneralSection
         projectId={project.id}
         name={project.name}
@@ -57,7 +57,8 @@ export default function ProjectSettings() {
         isManager={isManager}
         canLeave={!!me}
       />
-    </div>
+      </PageBody>
+    </>
   );
 }
 
@@ -102,8 +103,8 @@ function GeneralSection({
   }
 
   return (
-    <section className="mb-10">
-      <h2 className="text-sm font-semibold text-content uppercase tracking-wider mb-4">
+    <section>
+      <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider mb-3">
         General
       </h2>
       <div className="bg-surface border border-stroke rounded-xl p-6">
@@ -122,7 +123,7 @@ function GeneralSection({
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
               disabled={!isManager}
-              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
           <div>
@@ -135,7 +136,7 @@ function GeneralSection({
               disabled={!isManager}
               rows={3}
               placeholder="No description yet."
-              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -180,9 +181,9 @@ function PeopleSection({
   const pending = members.filter((m) => m.status === "pending");
 
   return (
-    <section className="mb-10">
+    <section>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-content uppercase tracking-wider">
+        <h2 className="text-[11px] font-semibold text-content-muted uppercase tracking-wider">
           People <span className="text-content-muted">({active.length})</span>
         </h2>
         {isManager && (
@@ -266,12 +267,12 @@ function InviteForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="teammate@example.com"
-          className="flex-1 px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+          className="flex-1 px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all"
         />
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+          className="px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all"
         >
           <option value="worker">Worker</option>
           <option value="manager">Manager</option>
@@ -464,7 +465,7 @@ function DangerSection({
 
   return (
     <section>
-      <h2 className="text-sm font-semibold text-danger uppercase tracking-wider mb-4">
+      <h2 className="text-[11px] font-semibold text-danger uppercase tracking-wider mb-3">
         Danger zone
       </h2>
       <div className="bg-surface border border-danger/20 rounded-xl divide-y divide-danger/10">

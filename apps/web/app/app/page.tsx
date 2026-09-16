@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
-  Loader2,
   FolderPlus,
   Circle,
   Clock,
@@ -17,6 +16,7 @@ import {
 import { TopBar } from "@/components/top-bar";
 import { ProjectAvatar } from "@/components/project-avatar";
 import { RequireAuth } from "@/components/require-auth";
+import { Modal } from "@/components/modal";
 import { useAuth } from "@/components/auth-provider";
 import {
   api,
@@ -24,11 +24,22 @@ import {
   type Project,
   type DashboardStats,
   type ProjectStats,
-  type ProjectRecentTask,
   type TaskStatus,
 } from "@/lib/api";
 import { fullName } from "@/lib/display";
 import { cn } from "@/lib/utils";
+import {
+  Button,
+  Badge,
+  Input,
+  Textarea,
+  Label,
+  EmptyState,
+  SkeletonCards,
+  Skeleton,
+  Alert,
+  Progress,
+} from "@/components/ui";
 
 function greeting() {
   const h = new Date().getHours();
@@ -57,7 +68,7 @@ function ProjectCard({ project }: { project: ProjectStats }) {
   return (
     <Link
       href={`/app/projects/${project.id}`}
-      className="group bg-surface border border-stroke rounded-xl hover:border-accent/40 transition-colors flex flex-col"
+      className="group bg-surface border border-stroke rounded-xl shadow-xs hover-lift hover:border-accent/40 flex flex-col overflow-hidden"
     >
       <div className="p-5 flex-1">
         <div className="flex items-center gap-3 mb-3">
@@ -66,7 +77,9 @@ function ProjectCard({ project }: { project: ProjectStats }) {
             <h3 className="font-semibold text-content truncate group-hover:text-accent transition-colors">
               {project.name}
             </h3>
-            <p className="text-xs text-content-muted capitalize">{project.role}</p>
+            <Badge tone={project.role === "manager" ? "accent" : "neutral"}>
+              {project.role}
+            </Badge>
           </div>
           <ArrowRight className="w-4 h-4 text-content-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
         </div>
@@ -77,19 +90,35 @@ function ProjectCard({ project }: { project: ProjectStats }) {
           </p>
         )}
 
-        <div className="flex items-center gap-4 text-xs text-content-muted">
+        {project.total_tasks > 0 && (
+          <div className="mb-3">
+            <Progress
+              value={
+                ((project.total_tasks - project.open_tasks) /
+                  project.total_tasks) *
+                100
+              }
+            />
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 text-xs text-content-muted flex-wrap">
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
             {project.member_count}
           </span>
-          <span>
+          <span className="tabular-nums">
             {project.total_tasks} task{project.total_tasks !== 1 ? "s" : ""}
           </span>
           {project.open_tasks > 0 && (
-            <span className="text-info">{project.open_tasks} open</span>
+            <span className="text-info tabular-nums">
+              {project.open_tasks} open
+            </span>
           )}
           {project.overdue_tasks > 0 && (
-            <span className="text-danger">{project.overdue_tasks} overdue</span>
+            <span className="text-danger font-medium tabular-nums">
+              {project.overdue_tasks} overdue
+            </span>
           )}
         </div>
       </div>
@@ -147,9 +176,14 @@ function HomeContent() {
     return (
       <div className="min-h-screen bg-surface-secondary">
         <TopBar />
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
-        </div>
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+          <div className="mb-8 space-y-2.5">
+            <Skeleton className="h-7 w-56 rounded-lg" />
+            <Skeleton className="h-4 w-80 rounded" />
+          </div>
+          <Skeleton className="h-5 w-32 rounded mb-4" />
+          <SkeletonCards count={4} />
+        </main>
       </div>
     );
   }
@@ -158,7 +192,7 @@ function HomeContent() {
     <div className="min-h-screen bg-surface-secondary">
       <TopBar />
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <section className="mb-8">
           <h1 className="text-2xl font-semibold text-content tracking-tight">
             {greeting()}
@@ -171,40 +205,27 @@ function HomeContent() {
           </p>
         </section>
 
-        {error && (
-          <div className="rounded-xl border border-danger/20 bg-danger-soft px-5 py-4 text-sm text-danger mb-6">
-            {error}
-          </div>
-        )}
+        {error && <Alert className="mb-6">{error}</Alert>}
 
         {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-20 border border-dashed border-stroke rounded-xl bg-surface">
-            <div className="w-14 h-14 rounded-2xl bg-surface-hover flex items-center justify-center mb-4">
-              <FolderPlus className="w-6 h-6 text-content-muted" />
-            </div>
-            <h3 className="text-base font-semibold text-content">No projects yet</h3>
-            <p className="text-sm text-content-secondary mt-1.5 max-w-sm">
-              A project is the home for your people, tasks, chat, notes, and files.
-            </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-5 flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Create project
-            </button>
-          </div>
+          <EmptyState
+            icon={FolderPlus}
+            title="No projects yet"
+            description="A project is the home for your people, tasks, chat, notes, and files."
+            action={
+              <Button icon={Plus} onClick={() => setShowCreate(true)}>
+                Create project
+              </Button>
+            }
+          />
         ) : (
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-content">Your projects</h2>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-3.5 py-2 rounded-lg transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                New project
-              </button>
+              <Button icon={Plus} onClick={() => setShowCreate(true)}>
+                <span className="hidden sm:inline">New project</span>
+                <span className="sm:hidden">New</span>
+              </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {projects.map((p) => (
@@ -257,69 +278,49 @@ function CreateProjectModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      onClick={onClose}
+    <Modal
+      title="New project"
+      description="You'll be added as its manager."
+      onClose={onClose}
     >
-      <div
-        className="w-full max-w-md bg-surface border border-stroke rounded-2xl shadow-xl p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-content mb-1">New project</h2>
-        <p className="text-sm text-content-secondary mb-5">
-          You&apos;ll be added as its manager.
-        </p>
-
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-lg bg-danger-soft border border-danger/20 px-3.5 py-2.5 text-sm text-danger">
-              {error}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-content mb-1.5">Name</label>
-            <input
-              type="text"
-              required
-              autoFocus
-              maxLength={255}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Mobile App Redesign"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-content mb-1.5">
-              Description <span className="text-content-muted font-normal">(optional)</span>
-            </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's this project about?"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-stroke text-content-secondary hover:bg-surface-hover text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-accent-contrast text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed min-w-[110px]"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create project"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <form id="create-project" className="space-y-4" onSubmit={handleSubmit}>
+        {error && <Alert>{error}</Alert>}
+        <div>
+          <Label htmlFor="project-name">Name</Label>
+          <Input
+            id="project-name"
+            type="text"
+            required
+            autoFocus
+            maxLength={255}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Mobile App Redesign"
+          />
+        </div>
+        <div>
+          <Label htmlFor="project-desc">
+            Description{" "}
+            <span className="text-content-muted font-normal">(optional)</span>
+          </Label>
+          <Textarea
+            id="project-desc"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What's this project about?"
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!name.trim()} loading={loading}>
+            Create project
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

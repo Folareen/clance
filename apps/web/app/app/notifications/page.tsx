@@ -5,11 +5,9 @@ import Link from "next/link";
 import {
   Bell,
   CheckCheck,
-  Loader2,
   CheckSquare,
   ArrowRightLeft,
   MessageCircle,
-  UserPlus,
   UserCheck,
   Mail,
   AtSign,
@@ -17,6 +15,7 @@ import {
   Pin,
 } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
+import { Button, Card, EmptyState, Skeleton } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { api, type Notification, type NotificationType } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -83,10 +82,10 @@ function NotificationsContent() {
   return (
     <div className="min-h-screen bg-surface-secondary">
       <TopBar />
-      <main className="max-w-2xl mx-auto px-6 py-10">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-content">
+            <h1 className="text-xl sm:text-2xl font-semibold text-content tracking-tight">
               Notifications
             </h1>
             <p className="text-content-secondary mt-1">
@@ -96,37 +95,43 @@ function NotificationsContent() {
             </p>
           </div>
           {unread > 0 && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={CheckCheck}
               onClick={handleMarkAllRead}
-              disabled={markingAll}
-              className="flex items-center gap-2 text-sm text-content-secondary hover:text-content transition-colors disabled:opacity-60"
+              loading={markingAll}
+              className="shrink-0"
             >
-              {markingAll ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <CheckCheck className="w-4 h-4" />
-              )}
-              Mark all read
-            </button>
+              <span className="hidden sm:inline">Mark all read</span>
+              <span className="sm:hidden">Read all</span>
+            </Button>
           )}
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-5 h-5 text-content-muted animate-spin" />
-          </div>
+          <Card className="divide-y divide-stroke-secondary overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 px-4 sm:px-5 py-4">
+                <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton
+                    className="h-3.5 rounded"
+                    style={{ width: `${55 + ((i * 13) % 30)}%` }}
+                  />
+                  <Skeleton className="h-3 w-20 rounded" />
+                </div>
+              </div>
+            ))}
+          </Card>
         ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-surface-hover flex items-center justify-center mb-4">
-              <Bell className="w-6 h-6 text-content-muted" />
-            </div>
-            <p className="text-sm text-content-muted">
-              New notifications about your tasks, mentions, and approvals will
-              show up here.
-            </p>
-          </div>
+          <EmptyState
+            icon={Bell}
+            title="You're all caught up"
+            description="New notifications about your tasks, mentions, and approvals will show up here."
+          />
         ) : (
-          <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+          <Card className="overflow-hidden divide-y divide-stroke-secondary">
             {notifications.map((n) => {
               const cfg = typeConfig[n.type] ?? UNKNOWN_TYPE;
               const Icon = cfg.icon;
@@ -139,9 +144,9 @@ function NotificationsContent() {
               const inner = (
                 <div
                   className={cn(
-                    "flex items-start gap-3 px-5 py-4 transition-colors",
+                    "flex items-start gap-3 px-4 sm:px-5 py-4 transition-colors",
                     !n.read && "bg-accent-soft/30",
-                    n.link && "hover:bg-surface-hover/50 cursor-pointer",
+                    n.link && "hover:bg-surface-hover/60 active:bg-surface-hover cursor-pointer",
                   )}
                   onClick={() => !n.read && handleMarkRead(n.id)}
                 >
@@ -187,7 +192,7 @@ function NotificationsContent() {
                 <div key={n.id}>{inner}</div>
               );
             })}
-          </div>
+          </Card>
         )}
       </main>
     </div>

@@ -7,7 +7,10 @@ import { ThemeToggle } from "./theme-toggle";
 
 const NAV_LINKS = [
   { name: "Features", href: "#features" },
+  { name: "AI assistant", href: "#assistant" },
+  { name: "Dashboards", href: "#dashboards" },
   { name: "How it works", href: "#how-it-works" },
+  { name: "FAQ", href: "#faq" },
 ];
 
 export function MarketingHeader() {
@@ -35,12 +38,12 @@ export function MarketingHeader() {
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1 text-sm">
+        <nav className="hidden md:flex items-center gap-0.5 text-sm">
           {NAV_LINKS.map((link) => (
             <a
               key={link.name}
               href={link.href}
-              className="px-3 py-2 rounded-lg text-content-secondary hover:text-content hover:bg-surface-hover transition-colors"
+              className="px-2.5 py-2 rounded-lg text-content-secondary hover:text-content hover:bg-surface-hover transition-colors whitespace-nowrap"
             >
               {link.name}
             </a>

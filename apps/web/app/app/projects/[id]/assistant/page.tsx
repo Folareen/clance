@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Sparkles, Send, Wand2 } from "lucide-react";
+import { Sparkles, Send, Wand2, Lock, Loader2, CornerDownLeft } from "lucide-react";
 import { useProject } from "@/components/project-provider";
 import { toast } from "@/components/toast";
 import { api, ApiError, type Task, type AiDraftTask } from "@/lib/api";
@@ -9,6 +9,8 @@ import {
   CreateTaskModal,
   type CreateTaskModalInitial,
 } from "@/components/create-task-modal";
+import { PageHeader, PageBody } from "@/components/page-header";
+import { Button, Card, Badge, Input, Textarea, Label } from "@/components/ui";
 
 export default function ProjectAssistant() {
   const { project } = useProject();
@@ -26,6 +28,13 @@ export default function ProjectAssistant() {
   const [tasks, setTasks] = useState<Task[]>([]);
 
   const activeMembers = project?.members.filter((m) => m.status === "active") ?? [];
+
+  const SUGGESTIONS = [
+    "What's overdue?",
+    "What's assigned to me?",
+    "What hasn't been submitted yet?",
+    "What's awaiting approval?",
+  ];
 
   const loadTasks = useCallback(async () => {
     if (!projectId || !isManager) return;
@@ -74,81 +83,148 @@ export default function ProjectAssistant() {
     }
   };
 
+  const askQuestion = (q: string) => {
+    setQuestion(q);
+    // Ask immediately when a suggestion is used
+    if (!projectId) return;
+    setAsking(true);
+    api
+      .askAssistant(projectId, q)
+      .then((res) => setAnswer(res.answer))
+      .catch((err) =>
+        toast(err instanceof ApiError ? err.message : "Failed to get an answer")
+      )
+      .finally(() => setAsking(false));
+  };
+
   return (
-    <div className="p-6 sm:p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-semibold text-content flex items-center gap-2 mb-1">
-        <Sparkles className="w-5 h-5 text-accent" />
-        AI Assistant
-      </h1>
-      <p className="text-content-secondary mb-8">
-        Ask about this project — read-only answers over your tasks
-      </p>
+    <>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-accent shrink-0" />
+            AI Assistant
+          </span>
+        }
+        description="Ask about this project. Answers come from your own tasks and chat"
+      />
 
-      <div className="bg-surface border border-stroke rounded-xl p-5 mb-8">
-        <label className="block text-sm font-medium text-content mb-2">
-          Ask a question
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleAsk();
-              }
-            }}
-            placeholder="What's overdue? What's blocked? Summarize task #12..."
-            className="flex-1 px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
-          />
-          <button
-            onClick={handleAsk}
-            disabled={!question.trim() || asking}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent-hover text-accent-contrast transition-colors disabled:opacity-50"
-          >
-            <Send className="w-4 h-4" />
-            Ask
-          </button>
-        </div>
-
-        {asking && (
-          <div className="text-content-muted text-sm mt-4">Thinking...</div>
-        )}
-
-        {!asking && answer && (
-          <div className="mt-4 p-4 rounded-lg bg-surface-secondary text-sm text-content leading-relaxed whitespace-pre-wrap">
-            {answer}
+      <PageBody className="max-w-3xl space-y-6">
+        {/* Q&A */}
+        <Card className="p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <Label className="mb-0">Ask a question</Label>
+            <Badge tone="neutral" icon={Lock}>
+              Read-only
+            </Badge>
           </div>
-        )}
-      </div>
 
-      {isManager && (
-        <div className="bg-surface border border-stroke rounded-xl p-5">
-          <label className="text-sm font-medium text-content mb-1 flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-accent" />
-            Draft a task
-          </label>
-          <p className="text-content-secondary text-sm mb-3">
-            Describe what needs to get done — you&apos;ll review and edit the draft before it&apos;s created.
-          </p>
-          <textarea
-            value={taskDescription}
-            onChange={(e) => setTaskDescription(e.target.value)}
-            rows={3}
-            placeholder="e.g. We need someone to fix the broken checkout flow on mobile, it's urgent"
-            className="w-full px-3 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all resize-none mb-3"
-          />
-          <button
-            onClick={handleDraft}
-            disabled={!taskDescription.trim() || drafting}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-accent hover:bg-accent-hover text-accent-contrast transition-colors disabled:opacity-50"
-          >
-            <Wand2 className="w-4 h-4" />
-            {drafting ? "Drafting..." : "Draft task"}
-          </button>
-        </div>
-      )}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Input
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAsk();
+                  }
+                }}
+                placeholder="What's overdue? Summarize task #12…"
+                className="pr-9"
+              />
+              <CornerDownLeft className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-muted pointer-events-none" />
+            </div>
+            <Button
+              icon={Send}
+              onClick={handleAsk}
+              disabled={!question.trim()}
+              loading={asking}
+              className="sm:w-auto w-full"
+            >
+              Ask
+            </Button>
+          </div>
+
+          {/* Suggestions */}
+          {!answer && !asking && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {SUGGESTIONS.map((sug) => (
+                <button
+                  key={sug}
+                  onClick={() => askQuestion(sug)}
+                  className="px-2.5 h-7 rounded-full border border-stroke bg-surface-secondary text-xs font-medium text-content-secondary hover:border-accent/40 hover:text-accent transition-colors press"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {asking && (
+            <div className="flex items-center gap-2 mt-4 text-sm text-content-muted">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Reading your project…
+            </div>
+          )}
+
+          {!asking && answer && (
+            <div className="mt-4 rounded-lg bg-surface-secondary border border-stroke-secondary p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-accent" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+                  Answer
+                </span>
+              </div>
+              <p className="text-sm text-content leading-relaxed whitespace-pre-wrap">
+                {answer}
+              </p>
+              <button
+                onClick={() => {
+                  setAnswer(null);
+                  setQuestion("");
+                }}
+                className="mt-3 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
+              >
+                Ask something else
+              </button>
+            </div>
+          )}
+        </Card>
+
+        {/* Task drafting, managers only */}
+        {isManager && (
+          <Card className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <Label className="mb-0 flex items-center gap-2">
+                <Wand2 className="w-4 h-4 text-accent" />
+                Draft a task
+              </Label>
+              <Badge tone="accent">Manager</Badge>
+            </div>
+            <p className="text-sm text-content-secondary mb-3 leading-relaxed">
+              Describe what needs to get done. You&apos;ll review and edit the
+              draft before anything is created.
+            </p>
+            <Textarea
+              value={taskDescription}
+              onChange={(e) => setTaskDescription(e.target.value)}
+              rows={3}
+              placeholder="e.g. We need someone to fix the broken checkout flow on mobile, it's urgent"
+              className="mb-3"
+            />
+            <Button
+              icon={Wand2}
+              onClick={handleDraft}
+              disabled={!taskDescription.trim()}
+              loading={drafting}
+            >
+              {drafting ? "Drafting…" : "Draft task"}
+            </Button>
+          </Card>
+        )}
+      </PageBody>
 
       {showCreate && (
         <CreateTaskModal
@@ -169,6 +245,6 @@ export default function ProjectAssistant() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

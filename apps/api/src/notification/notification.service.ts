@@ -19,10 +19,10 @@ type NotificationType =
 
 // Maps each notification type to the preference category that gates its
 // email/push delivery. In-app notification rows (the bell icon) are always
-// created regardless of preferences — these only control outbound channels.
+// created regardless of preferences. These only control outbound channels.
 // There's no distinct "approval requested" notification type today (it's
 // folded into task_status_changed alongside routine updates), so `approvals`
-// isn't separately addressable here yet — it's stored for forward
+// isn't separately addressable here yet, it's stored for forward
 // compatibility once that distinction exists at the call site.
 const CATEGORY_BY_TYPE: Record<NotificationType, 'mentions' | 'task_updates' | null> = {
   mentioned: 'mentions',

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Video, Plus, ExternalLink, Loader2, CheckSquare, X, Pencil, Trash2 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
 import { useAuth } from "@/components/auth-provider";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { PageHeader, PageBody } from "@/components/page-header";
+import { Button, Card, EmptyState, SkeletonRows, Alert } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { api, ApiError, type Meeting, type Task } from "@/lib/api";
@@ -75,54 +76,40 @@ export default function ProjectMeetings() {
   };
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-content">Meetings</h1>
-          <p className="text-content-secondary mt-1">
-            Keep a log of your project&apos;s meetings, notes, and links
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Log Meeting
-        </button>
-      </div>
+    <>
+      <PageHeader
+        title="Meetings"
+        description="Keep a log of your project's meetings, notes, and links"
+        actions={
+          <Button icon={Plus} onClick={() => setShowCreate(true)}>
+            <span className="hidden sm:inline">Log meeting</span>
+            <span className="sm:hidden">Log</span>
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-          {error}
-        </div>
-      )}
+      <PageBody>
+        {error && <Alert className="mb-4">{error}</Alert>}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
-        </div>
-      ) : meetings.length === 0 ? (
-        <PagePlaceholder
-          icon={Video}
-          title="No meetings yet"
-          description="Log a meeting to keep a record of it here, tied to the activity log."
-          action={
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Log a meeting
-            </button>
-          }
-        />
-      ) : (
-        <div className="bg-surface border border-stroke rounded-xl overflow-hidden divide-y divide-stroke-secondary">
+        {loading ? (
+          <SkeletonRows rows={4} />
+        ) : meetings.length === 0 ? (
+          <EmptyState
+            icon={Video}
+            title="No meetings yet"
+            description="Log a meeting to keep a record of it here, tied to the activity log."
+            action={
+              <Button icon={Plus} onClick={() => setShowCreate(true)}>
+                Log a meeting
+              </Button>
+            }
+          />
+        ) : (
+          <Card className="overflow-hidden divide-y divide-stroke-secondary">
           {meetings.map((m) => (
             <div
               key={m.id}
-              className="flex items-start gap-4 px-5 py-4 hover:bg-surface-hover/50 transition-colors group"
+              className="flex items-start gap-3.5 px-4 sm:px-5 py-4 hover:bg-surface-hover/60 transition-colors group"
             >
               <div className="w-10 h-10 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
                 <Video className="w-5 h-5 text-accent" />
@@ -177,8 +164,9 @@ export default function ProjectMeetings() {
               )}
             </div>
           ))}
-        </div>
-      )}
+          </Card>
+        )}
+      </PageBody>
 
       {showCreate && (
         <MeetingModal
@@ -213,7 +201,7 @@ export default function ProjectMeetings() {
           onCancel={() => setDeleting(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -298,7 +286,7 @@ function MeetingModal({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Weekly sync"
-          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all mb-4"
         />
 
         <label className="block text-sm font-medium text-content mb-1.5">When</label>
@@ -306,7 +294,7 @@ function MeetingModal({
           type="datetime-local"
           value={happenedAt}
           onChange={(e) => setHappenedAt(e.target.value)}
-          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all mb-4"
         />
 
         <label className="block text-sm font-medium text-content mb-1.5">
@@ -315,7 +303,7 @@ function MeetingModal({
         <select
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
-          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all mb-4"
         >
           <option value="">No task</option>
           {tasks.map((t) => (
@@ -333,7 +321,7 @@ function MeetingModal({
           value={joinUrl}
           onChange={(e) => setJoinUrl(e.target.value)}
           placeholder="https://meet.google.com/xxx-yyyy-zzz"
-          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all mb-4"
         />
 
         <label className="block text-sm font-medium text-content mb-1.5">
@@ -344,7 +332,7 @@ function MeetingModal({
           onChange={(e) => setNotes(e.target.value)}
           placeholder="What was discussed, decisions made..."
           rows={3}
-          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all mb-4 resize-none"
+          className="w-full px-3.5 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition-all mb-4 resize-none"
         />
 
         <div className="flex justify-end gap-2">

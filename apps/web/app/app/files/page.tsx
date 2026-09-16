@@ -8,12 +8,11 @@ import {
   File as FileIcon,
   MessageCircle,
   CheckSquare,
-  Loader2,
   Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TopBar } from "@/components/top-bar";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { Card, Input, Segmented, SegmentedItem, EmptyState, SkeletonRows, Alert } from "@/components/ui";
 import { RequireAuth } from "@/components/require-auth";
 import { api, ApiError, type PersonalFileRecord } from "@/lib/api";
 
@@ -49,7 +48,7 @@ function AllFilesContent() {
   return (
     <div className="min-h-screen bg-surface-secondary">
       <TopBar />
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-content">All Files</h1>
           <p className="text-content-secondary mt-1">
@@ -58,54 +57,43 @@ function AllFilesContent() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted" />
-            <input
-              type="text"
+        <div className="flex items-center gap-2.5 mb-6">
+          <div className="relative flex-1 min-w-0 sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted pointer-events-none" />
+            <Input
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search files..."
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-stroke bg-surface text-content text-sm placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all"
+              placeholder="Search files…"
+              className="pl-9"
             />
           </div>
-          <div className="flex items-center gap-1 bg-surface border border-stroke rounded-lg p-0.5">
+          <Segmented className="shrink-0">
             {(["all", "task", "message"] as const).map((t) => (
-              <button
+              <SegmentedItem
                 key={t}
+                active={typeFilter === t}
                 onClick={() => setTypeFilter(t)}
-                className={cn(
-                  "px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                  typeFilter === t
-                    ? "bg-accent text-accent-contrast"
-                    : "text-content-secondary hover:text-content hover:bg-surface-hover"
-                )}
               >
                 {t === "all" ? "All" : t === "task" ? "Tasks" : "Chats"}
-              </button>
+              </SegmentedItem>
             ))}
-          </div>
+          </Segmented>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-            {error}
-          </div>
-        )}
+        {error && <Alert className="mb-4">{error}</Alert>}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
-          </div>
+          <SkeletonRows rows={6} />
         ) : filtered.length === 0 ? (
-          <PagePlaceholder
+          <EmptyState
             icon={Folder}
             title={files.length === 0 ? "No files yet" : "No files match your search"}
-            description="This is your personal view — files aggregate here automatically from the tasks and chats you belong to."
+            description="This is your personal view. Files aggregate here automatically from the tasks and chats you belong to."
           />
         ) : (
-          <div className="bg-surface border border-stroke rounded-xl overflow-hidden">
-            <div className="hidden sm:grid grid-cols-[1fr_140px_140px_100px_90px] gap-4 px-5 py-3 border-b border-stroke bg-surface-secondary text-xs font-medium text-content-muted uppercase tracking-wider">
+          <Card className="overflow-hidden">
+            <div className="hidden sm:grid grid-cols-[1fr_140px_140px_100px_90px] gap-4 px-5 py-2.5 border-b border-stroke bg-surface-secondary/70 text-[11px] font-semibold text-content-muted uppercase tracking-wider">
               <div>Name</div>
               <div>Project</div>
               <div>Source</div>
@@ -126,7 +114,7 @@ function AllFilesContent() {
                     href={f.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_140px_140px_100px_90px] gap-3 sm:gap-4 px-4 sm:px-5 py-3 items-center hover:bg-surface-hover/50 transition-colors cursor-pointer group"
+                    className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_140px_140px_100px_90px] gap-3 sm:gap-4 px-4 sm:px-5 py-3 items-center hover:bg-surface-hover/60 active:bg-surface-hover transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -160,18 +148,18 @@ function AllFilesContent() {
                     <span className="hidden sm:block text-sm text-content-secondary">
                       {f.size ? formatFileSize(f.size) : "—"}
                     </span>
-                    <span className="hidden sm:block text-sm text-content-muted">
+                    <span className="hidden sm:block text-sm text-content-muted tabular-nums">
                       {formatDate(f.created_at)}
                     </span>
                   </a>
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
-        <p className="text-xs text-content-muted mt-4">
-          Files only exist as attachments on a task or chat — there&apos;s no
+        <p className="text-xs text-content-muted mt-4 leading-relaxed">
+          Files only exist as attachments on a task or chat. There&apos;s no
           separate upload. This view pulls every attachment from every task
           and chat you&apos;re already a member of.
         </p>

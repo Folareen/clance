@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Activity,
-  Loader2,
   CheckSquare,
   UserPlus,
   UserMinus,
@@ -18,9 +17,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useProject } from "@/components/project-provider";
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { PageHeader, PageBody } from "@/components/page-header";
+import { Card, EmptyState, Skeleton, Alert } from "@/components/ui";
 import { api, ApiError, type ActivityEntry, type ActivityType } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 const activityIcons: Record<ActivityType, LucideIcon> = {
   task_created: CheckSquare,
@@ -83,70 +82,94 @@ export default function ProjectActivity() {
   }, [loadActivity]);
 
   return (
-    <div className="p-6 sm:p-8 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-content">Activity Log</h1>
-        <p className="text-content-secondary mt-1">
-          Every status change, approval, edit, and upload — timestamped
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Activity"
+        description="Every status change, approval, edit, and upload, timestamped"
+      />
 
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-danger-soft text-danger text-sm">
-          {error}
-        </div>
-      )}
+      <PageBody>
+        {error && <Alert className="mb-4">{error}</Alert>}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-content-muted animate-spin" />
-        </div>
-      ) : entries.length === 0 ? (
-        <PagePlaceholder
-          icon={Activity}
-          title="Activity will appear here"
-          description="A running record of everything that happens in this project, visible to managers and workers alike."
-        />
-      ) : (
-        <div className="bg-surface border border-stroke rounded-xl divide-y divide-stroke-secondary overflow-hidden">
-          {entries.map((entry) => {
-            const Icon = activityIcons[entry.type] ?? Activity;
-            const body = (
-              <div className="flex items-start gap-3 px-5 py-3.5">
-                <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center shrink-0 mt-0.5">
-                  <Icon className="w-4 h-4 text-content-secondary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-content">
-                    <span className="font-medium">{actorName(entry.actor)}</span>{" "}
-                    <span className="text-content-secondary">{entry.summary}</span>
-                  </p>
-                  {entry.body && (
-                    <p className="text-sm text-content-muted mt-1 italic border-l-2 border-stroke-secondary pl-2.5">
-                      &ldquo;{entry.body}&rdquo;
-                    </p>
-                  )}
-                  <p className="text-xs text-content-muted mt-1">
-                    {formatTimestamp(entry.created_at)}
-                  </p>
+        {loading ? (
+          <Card className="divide-y divide-stroke-secondary overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 px-4 sm:px-5 py-4">
+                <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton
+                    className="h-3.5 rounded"
+                    style={{ width: `${50 + ((i * 11) % 30)}%` }}
+                  />
+                  <Skeleton className="h-3 w-20 rounded" />
                 </div>
               </div>
-            );
+            ))}
+          </Card>
+        ) : entries.length === 0 ? (
+          <EmptyState
+            icon={Activity}
+            title="Activity will appear here"
+            description="A running record of everything that happens in this project, visible to managers and workers alike."
+          />
+        ) : (
+          <Card className="overflow-hidden">
+            <ol className="relative">
+              {entries.map((entry, i) => {
+                const Icon = activityIcons[entry.type] ?? Activity;
+                const last = i === entries.length - 1;
 
-            return entry.link ? (
-              <Link
-                key={entry.id}
-                href={entry.link}
-                className={cn("block hover:bg-surface-hover/50 transition-colors")}
-              >
-                {body}
-              </Link>
-            ) : (
-              <div key={entry.id}>{body}</div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                const body = (
+                  <div className="relative flex items-start gap-3 px-4 sm:px-5 py-4">
+                    {/* Timeline rail */}
+                    {!last && (
+                      <span
+                        aria-hidden
+                        className="absolute left-[31px] sm:left-[35px] top-[52px] bottom-0 w-px bg-stroke-secondary"
+                      />
+                    )}
+                    <span className="relative z-10 w-8 h-8 rounded-full bg-surface-hover border border-stroke flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-content-secondary" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-content leading-snug">
+                        <span className="font-medium">{actorName(entry.actor)}</span>{" "}
+                        <span className="text-content-secondary">{entry.summary}</span>
+                      </p>
+                      {entry.body && (
+                        <p className="text-sm text-content-muted mt-1.5 italic border-l-2 border-stroke-secondary pl-2.5">
+                          &ldquo;{entry.body}&rdquo;
+                        </p>
+                      )}
+                      <p className="text-xs text-content-muted mt-1.5 tabular-nums">
+                        {formatTimestamp(entry.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <li
+                    key={entry.id}
+                    className="border-b border-stroke-secondary last:border-0"
+                  >
+                    {entry.link ? (
+                      <Link
+                        href={entry.link}
+                        className="block hover:bg-surface-hover/60 active:bg-surface-hover transition-colors"
+                      >
+                        {body}
+                      </Link>
+                    ) : (
+                      body
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </Card>
+        )}
+      </PageBody>
+    </>
   );
 }
