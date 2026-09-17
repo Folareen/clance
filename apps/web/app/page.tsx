@@ -11,7 +11,6 @@ import {
   FolderX,
   Layers,
   LayoutDashboard,
-  Sparkles,
   Video,
   Bell,
   Search,
@@ -22,7 +21,6 @@ import {
   FileText,
   Lock,
   ShieldCheck,
-  GitBranch,
   Inbox,
   Wand2,
 } from "lucide-react";
@@ -167,23 +165,122 @@ function FilesMockup() {
   );
 }
 
-const PROBLEMS = [
-  {
-    icon: MessagesSquare,
-    title: "Scattered across tools",
-    body: "A tracker for tasks, a group chat for decisions, a Doc for notes, a Drive folder for files. None of them agree with each other.",
-  },
-  {
-    icon: UserCheck,
-    title: "No one owns approval",
-    body: "Work gets marked “done” in a group chat, and three people find out three different ways, if they find out at all.",
-  },
-  {
-    icon: FolderX,
-    title: "Files get lost in DMs",
-    body: "The file you need is in a thread from six weeks ago, if you can even remember who sent it.",
-  },
+/* Hand-drawn underline. Two offset strokes with slightly different
+   curvature read as marker rather than a border-bottom. The stroke
+   is drawn on scroll via the same [data-visible] hook Reveal uses. */
+function Underline({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 200 12"
+      preserveAspectRatio="none"
+      className={`u-draw absolute left-0 -bottom-2 w-full h-[10px] overflow-visible text-accent ${className}`}
+    >
+      <path
+        d="M2 7.5C38 3.2 86 2.4 132 4.1c22 .8 44 2.3 66 4.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      <path
+        d="M10 10.4C52 7.6 104 7 150 8.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.45"
+      />
+    </svg>
+  );
+}
+
+/* A word inside a heading that carries the underline. Inside a Reveal the
+   stroke draws itself in on scroll; elsewhere it is simply drawn. */
+function Marked({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative inline-block">
+      {children}
+      <Underline />
+    </span>
+  );
+}
+
+/* The five things every project produces, and the tool each one drifts into
+   when there's no single home for them. Mirrors the objects Clance actually
+   holds (tasks, chat, notes, files, approvals) so the right-hand card is a
+   one-to-one answer rather than a vague promise. */
+const SCATTERED = [
+  { icon: CheckCircle2, label: "Tasks", where: "in a tracker" },
+  { icon: MessagesSquare, label: "Decisions", where: "in a group chat" },
+  { icon: FileText, label: "Notes", where: "in a doc" },
+  { icon: FolderX, label: "Files", where: "in someone's DMs" },
+  { icon: UserCheck, label: "Approvals", where: "over text" },
 ];
+
+function ScatterDiagram() {
+  return (
+    <div className="grid lg:grid-cols-[1fr_auto_1fr] gap-8 lg:gap-6 items-center">
+      {/* Left: five loose objects, each sitting in a different tool. Slight
+          alternating offsets on desktop so the column reads as scattered
+          rather than as a tidy list. */}
+      <ul className="space-y-2.5">
+        {SCATTERED.map((item, i) => (
+          <li
+            key={item.label}
+            className="flex items-center gap-3 rounded-xl border border-stroke bg-surface px-4 py-3 lg:[margin-left:var(--off)]"
+            style={{ ["--off" as string]: `${[0, 28, 10, 36, 4][i]}px` }}
+          >
+            <item.icon className="w-4 h-4 text-content-muted shrink-0" />
+            <span className="text-sm font-medium text-content">{item.label}</span>
+            <span className="text-sm text-content-muted truncate">{item.where}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Middle: the collapse. Horizontal on desktop, vertical on mobile. */}
+      <div className="flex lg:flex-col items-center justify-center gap-2 text-content-muted">
+        <span className="h-px w-16 lg:h-16 lg:w-px bg-stroke" />
+        <ArrowRight className="w-4 h-4 shrink-0 rotate-90 lg:rotate-0" />
+        <span className="h-px w-16 lg:h-16 lg:w-px bg-stroke" />
+      </div>
+
+      {/* Right: one project holding all five, with the status flow that makes
+          "approved" mean something specific. */}
+      <div className="rounded-2xl border border-accent/20 bg-surface shadow-lg overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 h-11 border-b border-stroke bg-accent-soft/40">
+          <div className="w-5 h-5 rounded-md bg-accent flex items-center justify-center shrink-0">
+            <span className="text-white text-[10px] font-bold">C</span>
+          </div>
+          <span className="text-sm font-semibold text-content truncate">
+            One project
+          </span>
+        </div>
+        <div className="p-4 space-y-2.5">
+          {SCATTERED.map((item) => (
+            <div key={item.label} className="flex items-center gap-3">
+              <item.icon className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-sm text-content">{item.label}</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-success ml-auto shrink-0" />
+            </div>
+          ))}
+          <div className="pt-3 mt-1 border-t border-stroke-secondary flex items-center gap-2 flex-wrap">
+            <span className="text-content-muted font-mono text-xs">#14</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-warning-soft text-warning">
+              Submitted
+            </span>
+            <ArrowRight className="w-3 h-3 text-content-muted shrink-0" />
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success-soft text-success">
+              Approved
+            </span>
+            <span className="text-xs text-content-muted">· logged</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const GRID_FEATURES = [
   {
@@ -360,16 +457,9 @@ export default function LandingPage() {
         </div>
         <div className="relative max-w-6xl mx-auto px-5 sm:px-6 pt-16 sm:pt-24 pb-20 sm:pb-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/80 border border-white/15 bg-white/[0.04] rounded-full pl-2.5 pr-3 py-1 mb-6 animate-fade-down">
-              <span className="inline-flex items-center gap-1 text-accent font-semibold">
-                <Sparkles className="w-3 h-3" />
-                Free forever
-              </span>
-              <span className="w-px h-3 bg-white/15" />
-              For contract, freelance &amp; lean teams
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-5 animate-fade-up">
-              One project-shaped home for how freelance teams actually work
+            <h1 className="font-display text-4xl sm:text-5xl font-semibold text-white leading-[1.1] mb-6 animate-fade-up">
+              One project-shaped home for how freelance teams{" "}
+              <Marked>actually work</Marked>
             </h1>
             <p className="text-lg text-white/60 leading-relaxed mb-8 max-w-lg animate-fade-up delay-2">
               Tasks, chat, notes, files and approvals in one project, so nothing
@@ -380,7 +470,7 @@ export default function LandingPage() {
                 href="/signup"
                 className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-5 py-3 rounded-lg transition-colors press group"
               >
-                Get started free
+                Get started
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -405,41 +495,28 @@ export default function LandingPage() {
       <section className="bg-surface-secondary">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
           <Reveal className="max-w-2xl mb-12">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
-              Your project already has five owners
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content mb-4">
+              Your project is spread across{" "}
+              <Marked>five tools</Marked>
             </h2>
             <p className="text-content-secondary text-lg leading-relaxed">
-              Tasks live in one app. Approvals happen over text. Files get buried
-              three DMs deep. By the time the work is done, nobody agrees on what
-              actually happened.
+              Every project produces the same five things. Without one home for
+              them, each drifts into a different app, and by the time the work
+              ships nobody agrees on what actually happened.
             </p>
           </Reveal>
-          <div className="grid sm:grid-cols-3 gap-5">
-            {PROBLEMS.map((p, i) => (
-              <Reveal
-                key={p.title}
-                delay={i * 90}
-                className="rounded-2xl bg-surface p-6"
-              >
-                <div className="w-10 h-10 rounded-lg bg-danger-soft flex items-center justify-center mb-4">
-                  <p.icon className="w-5 h-5 text-danger" />
-                </div>
-                <h3 className="font-semibold text-content mb-1.5">{p.title}</h3>
-                <p className="text-sm text-content-secondary leading-relaxed">
-                  {p.body}
-                </p>
-              </Reveal>
-            ))}
-          </div>
+          <Reveal delay={90}>
+            <ScatterDiagram />
+          </Reveal>
         </div>
       </section>
 
       {/* Feature: Tasks */}
       <section id="features" className="scroll-mt-16">
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <Reveal kind="left" className="min-w-0">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
-              A task system built for real accountability
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          <Reveal kind="left" className="min-w-0 lg:col-span-5">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content mb-5">
+              Built for real accountability
             </h2>
             <ul className="space-y-4">
               {[
@@ -455,7 +532,7 @@ export default function LandingPage() {
               ))}
             </ul>
           </Reveal>
-          <Reveal kind="right" delay={120} className="min-w-0 rounded-2xl bg-surface-secondary p-6">
+          <Reveal kind="right" delay={120} className="min-w-0 lg:col-span-7 rounded-2xl bg-surface-secondary p-6">
             <div className="rounded-xl bg-surface p-5 shadow-lg">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-2 mb-4">
                 {[
@@ -498,13 +575,13 @@ export default function LandingPage() {
 
       {/* Feature: Chat */}
       <section className="bg-surface-secondary">
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <Reveal kind="left" className="min-w-0 order-2 lg:order-1">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          <Reveal kind="left" className="min-w-0 order-2 lg:order-1 lg:col-span-7">
             <ChatMockup />
           </Reveal>
-          <Reveal kind="right" delay={120} className="min-w-0 order-1 lg:order-2">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
-              One messaging engine for group chat, DMs, and task comments
+          <Reveal kind="right" delay={120} className="min-w-0 order-1 lg:order-2 lg:col-span-5">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content mb-5">
+              One engine for chat, DMs and task comments
             </h2>
             <ul className="space-y-4">
               {[
@@ -524,25 +601,35 @@ export default function LandingPage() {
 
       {/* Feature: Files */}
       <section>
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <Reveal kind="left" className="min-w-0">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-5">
-              Files don&apos;t need their own app
-            </h2>
-            <ul className="space-y-4">
-              {[
-                "No separate upload flow and no permission matrix. Attachments live on the task or chat they belong to",
-                "Visibility inherits automatically from who's already in that thread",
-                "“All Files” pulls every attachment you personally have access to onto one screen",
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
-                  <span className="text-content-secondary leading-relaxed">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-          <Reveal kind="right" delay={120} className="min-w-0">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32">
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end mb-14">
+            <Reveal kind="left" className="min-w-0 lg:col-span-5">
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content">
+                Files don&apos;t need their own app
+              </h2>
+            </Reveal>
+            <Reveal
+              kind="right"
+              delay={100}
+              className="min-w-0 lg:col-span-6 lg:col-start-7"
+            >
+              <ul className="space-y-4">
+                {[
+                  "No separate upload flow and no permission matrix. Attachments live on the task or chat they belong to",
+                  "Visibility inherits automatically from who's already in that thread",
+                  "“All Files” pulls every attachment you personally have access to onto one screen",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
+                    <span className="text-content-secondary leading-relaxed">
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+          <Reveal delay={160} className="min-w-0">
             <FilesMockup />
           </Reveal>
         </div>
@@ -553,11 +640,7 @@ export default function LandingPage() {
       <section id="assistant" className="scroll-mt-16 bg-surface-secondary">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
           <Reveal className="max-w-2xl mb-12">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              AI assistant
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content mb-4">
               An assistant that knows its place
             </h2>
             <p className="text-content-secondary text-lg leading-relaxed">
@@ -600,15 +683,19 @@ export default function LandingPage() {
 
       {/* Grid features */}
       <section>
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
-          <Reveal className="max-w-2xl mb-12">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
-              Everything else your project needs
-            </h2>
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-12 gap-10 lg:gap-16">
+          {/* Sticky rail: the heading stays with the cards as they scroll,
+              instead of scrolling away above them. */}
+          <Reveal className="lg:col-span-4">
+            <div className="lg:sticky lg:top-24">
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content">
+                Everything else your project needs
+              </h2>
+            </div>
           </Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
+          <div className="lg:col-span-8 grid sm:grid-cols-2 gap-x-10 gap-y-10">
             {GRID_FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={(i % 3) * 90}>
+              <Reveal key={f.title} delay={(i % 2) * 90}>
                 <f.icon className="w-5 h-5 text-accent mb-3" />
                 <h3 className="font-semibold text-content mb-1.5">{f.title}</h3>
                 <p className="text-sm text-content-secondary leading-relaxed">
@@ -623,9 +710,9 @@ export default function LandingPage() {
 
       {/* Role-aware dashboards */}
       <section id="dashboards" className="scroll-mt-16 bg-surface-secondary">
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <Reveal kind="left" className="min-w-0">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight mb-4">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          <Reveal kind="left" className="min-w-0 lg:col-span-5">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content mb-4">
               The same project, seen two ways
             </h2>
             <p className="text-content-secondary text-lg leading-relaxed mb-5">
@@ -638,7 +725,7 @@ export default function LandingPage() {
               widget library, no setup.
             </p>
           </Reveal>
-          <Reveal kind="right" delay={120} className="min-w-0">
+          <Reveal kind="right" delay={120} className="min-w-0 lg:col-span-7">
             <RoleTabs worker={ROLE_VIEWS.worker} manager={ROLE_VIEWS.manager} />
           </Reveal>
         </div>
@@ -646,17 +733,23 @@ export default function LandingPage() {
 
       {/* How it works */}
       <section id="how-it-works" className="scroll-mt-16">
-        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32">
           <Reveal className="max-w-2xl mb-14">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content">
               Up and running in three steps
             </h2>
           </Reveal>
-          <div className="grid sm:grid-cols-3 gap-8 sm:gap-10">
+          {/* A rule runs behind the row so the steps read as one sequence
+              rather than three unrelated columns. */}
+          <div className="relative grid sm:grid-cols-3 gap-10 sm:gap-10">
+            <span
+              aria-hidden
+              className="hidden sm:block absolute left-0 right-0 top-3 h-px bg-stroke"
+            />
             {STEPS.map((s, i) => (
               <Reveal key={s.title} delay={i * 110} className="relative">
                 <div className="flex items-baseline gap-3 mb-3">
-                  <span className="text-2xl font-semibold text-accent tabular-nums">
+                  <span className="relative bg-surface pr-3 text-2xl font-semibold text-accent tabular-nums leading-none">
                     0{i + 1}
                   </span>
                   <s.icon className="w-4 h-4 text-content-muted shrink-0" />
@@ -674,13 +767,15 @@ export default function LandingPage() {
 
       {/* FAQ */}
       <section id="faq" className="scroll-mt-16 bg-surface-secondary">
-        <div className="max-w-3xl mx-auto px-5 sm:px-6 py-20 sm:py-24">
-          <Reveal className="mb-10">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-content tracking-tight">
-              Questions worth asking first
-            </h2>
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-12 gap-10 lg:gap-16">
+          <Reveal className="lg:col-span-4">
+            <div className="lg:sticky lg:top-24">
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-content">
+                Questions worth asking first
+              </h2>
+            </div>
           </Reveal>
-          <Reveal delay={80}>
+          <Reveal delay={80} className="lg:col-span-8 min-w-0">
             <Faq items={FAQS} />
           </Reveal>
         </div>
@@ -688,28 +783,30 @@ export default function LandingPage() {
 
       {/* Final CTA */}
       <section className="bg-nav-bg">
-        <Reveal className="max-w-4xl mx-auto px-5 sm:px-6 py-20 sm:py-24 text-center">
-          <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
-            Give your project one home, instead of five apps
-          </h2>
-          <p className="text-white/60 text-lg mb-8 max-w-xl mx-auto">
-            Free forever, with unlimited projects, tasks and members. No credit
-            card, no trial clock.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/signup"
-              className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-5 py-3 rounded-lg transition-colors"
-            >
-              Get started free
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="flex items-center gap-2 border border-white/15 hover:bg-white/10 text-white font-medium px-5 py-3 rounded-lg transition-colors"
-            >
-              Sign in
-            </Link>
+        <Reveal className="max-w-6xl mx-auto px-5 sm:px-6 py-24 sm:py-32">
+          <div className="max-w-xl">
+            <h2 className="font-display text-3xl sm:text-5xl font-semibold text-white mb-4 leading-[1.1]">
+              Give your project <Marked>one home</Marked>, instead of five apps
+            </h2>
+            <p className="text-white/60 text-lg mb-8">
+              Free forever, with unlimited projects, tasks and members. No
+              credit card, no trial clock.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/signup"
+                className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-contrast font-medium px-5 py-3 rounded-lg transition-colors"
+              >
+                Get started
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="flex items-center gap-2 border border-white/15 hover:bg-white/10 text-white font-medium px-5 py-3 rounded-lg transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </Reveal>
       </section>
